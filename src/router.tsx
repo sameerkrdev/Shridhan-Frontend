@@ -3,6 +3,7 @@ import RootLayout from "@/layouts/RootLayout";
 import AuthorizedLayout from "@/layouts/AuthorizedLayout";
 import UnauthorizedLayout from "@/layouts/UnauthorizedLayout";
 import DashboardPage from "@/pages/DashboardPage";
+import TeamsPage from "@/pages/TeamsPage";
 import LoginPage from "@/pages/LoginPage";
 import IndexPage from "@/pages/IndexPage";
 import OnboardingPage from "@/pages/OnboardingPage";
@@ -19,6 +20,10 @@ const router = createBrowserRouter([
           {
             path: "",
             element: <DashboardPage />,
+          },
+          {
+            path: "teams",
+            element: <TeamsPage />,
           },
         ],
       },
