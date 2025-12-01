@@ -7,6 +7,7 @@ import TeamsPage from "@/pages/TeamsPage";
 import LoginPage from "@/pages/LoginPage";
 import IndexPage from "@/pages/IndexPage";
 import OnboardingPage from "@/pages/OnboardingPage";
+import SignupPage from "@/pages/SignupPage";
 
 const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
           {
             path: "login",
             element: <LoginPage />,
+          },
+          {
+            path: "register",
+            element: <SignupPage />,
           },
           {
             path: "onboarding",
