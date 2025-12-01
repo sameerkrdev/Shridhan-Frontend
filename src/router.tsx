@@ -4,14 +4,16 @@ import AuthorizedLayout from "@/layouts/AuthorizedLayout";
 import UnauthorizedLayout from "@/layouts/UnauthorizedLayout";
 import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
+import IndexPage from "@/pages/IndexPage";
+import OnboardingPage from "@/pages/OnboardingPage";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <RootLayout />,
     children: [
+      // Protected (authenticated) routes
       {
-        path: "",
         element: <AuthorizedLayout />,
         children: [
           {
@@ -20,14 +22,22 @@ const router = createBrowserRouter([
           },
         ],
       },
+
+      // Public (unauthenticated) routes
       {
-        path: "auth",
         element: <UnauthorizedLayout />,
         children: [
           {
             path: "login",
             element: <LoginPage />,
-            children: [],
+          },
+          {
+            path: "onboarding",
+            element: <OnboardingPage />,
+          },
+          {
+            path: "index", // Todo: For now, we are adding path /index to show the index but when authentication is ready then routing will be based on it.
+            element: <IndexPage />,
           },
         ],
       },
