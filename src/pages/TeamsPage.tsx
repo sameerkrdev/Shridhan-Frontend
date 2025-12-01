@@ -9,12 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  IconSearch,
-  IconEdit,
-  IconTrash,
-  IconUserPlus,
-} from "@tabler/icons-react";
+import { IconSearch, IconEdit, IconTrash, IconUserPlus } from "@tabler/icons-react";
 import tableData from "@/app/dashboard/data.json";
 import { AddMemberDialog } from "@/dialogs/AddMemberDialog";
 import { EditMemberDialog } from "@/dialogs/EditMemberDialog";
@@ -89,9 +84,7 @@ const TeamsPage = () => {
     if (selectedMember) {
       setData((prevData) =>
         prevData.map((member) =>
-          member.id === selectedMember.id
-            ? { ...member, ...updatedData }
-            : member
+          member.id === selectedMember.id ? { ...member, ...updatedData } : member
         )
       );
       setSelectedMember(null);
@@ -100,9 +93,7 @@ const TeamsPage = () => {
 
   const handleDeleteConfirm = () => {
     if (selectedMember) {
-      setData((prevData) =>
-        prevData.filter((member) => member.id !== selectedMember.id)
-      );
+      setData((prevData) => prevData.filter((member) => member.id !== selectedMember.id));
       setIsDeleteModalOpen(false);
       setSelectedMember(null);
     }
@@ -120,19 +111,17 @@ const TeamsPage = () => {
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="border-b bg-linear-to-r from-background to-muted/20 px-6 py-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="py-6">
+        <div>
           <h1 className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Teams Dashboard
           </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage and track team members
-          </p>
+          <p className="text-muted-foreground mt-2">Manage and track team members</p>
         </div>
       </div>
 
-      <div className="border-b bg-muted/30 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="py-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -150,48 +139,30 @@ const TeamsPage = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="flex-1 overflow-auto py-6">
+        <div>
           <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/70">
-                  <TableHead className="w-[80px] font-semibold">
-                    S.No.
-                  </TableHead>
-                  <TableHead className="font-semibold min-w-[200px]">
-                    Name
-                  </TableHead>
-                  <TableHead className="font-semibold min-w-[250px]">
-                    Email
-                  </TableHead>
-                  <TableHead className="font-semibold min-w-[180px]">
-                    Phone Number
-                  </TableHead>
-                  <TableHead className="font-semibold min-w-[200px]">
-                    Role
-                  </TableHead>
-                  <TableHead className="font-semibold text-center w-[180px]">
-                    Actions
-                  </TableHead>
+                  <TableHead className="w-20 font-semibold">S.No.</TableHead>
+                  <TableHead className="font-semibold min-w-[200px]">Name</TableHead>
+                  <TableHead className="font-semibold min-w-[250px]">Email</TableHead>
+                  <TableHead className="font-semibold min-w-[180px]">Phone Number</TableHead>
+                  <TableHead className="font-semibold min-w-[200px]">Role</TableHead>
+                  <TableHead className="font-semibold text-center w-[180px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredData.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-12 text-muted-foreground"
-                    >
+                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                       No results found. Try adjusting your search.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredData.map((member, index) => (
-                    <TableRow
-                      key={member.id}
-                      className="hover:bg-muted/50 transition-colors"
-                    >
+                    <TableRow key={member.id} className="hover:bg-muted/50 transition-colors">
                       <TableCell className="font-medium text-muted-foreground">
                         {index + 1}
                       </TableCell>
@@ -209,9 +180,7 @@ const TeamsPage = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {member.email}
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {member.phoneNumber}
-                      </TableCell>
+                      <TableCell className="font-mono text-sm">{member.phoneNumber}</TableCell>
                       <TableCell>{member.role}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
