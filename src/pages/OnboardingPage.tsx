@@ -1,29 +1,41 @@
+import OnboardingForm from "@/components/onboardingPage/OnboardingForm";
+import { FieldDescription } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import { GalleryVerticalEnd } from "lucide-react";
 
 // import { SignupForm } from "@/components/signup-form";
 
 export default function OnboardingPage() {
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="flex flex-col gap-4 p-6 md:p-10">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <a href="#" className="flex items-center gap-2 font-medium">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-4" />
-            </div>
-            Shridhan
-          </a>
+    <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <div className={cn("flex flex-col gap-6")}>
+          {/* HEADER */}
+          <div className="flex flex-col items-center gap-2 text-center">
+            <a href="/" className="flex items-center gap-2 font-medium">
+              <div className="flex size-8 items-center justify-center rounded-md">
+                <GalleryVerticalEnd className="size-6" />
+              </div>
+              <div className="font-bold text-3xl">Shridhan</div>
+            </a>
+
+            {/* <h1 className="text-xl font-bold">Welcome to Shridhan</h1>
+            <FieldDescription>
+              Don&apos;t have an account? <a href="#">Sign up</a>
+            </FieldDescription> */}
+          </div>
+
+          <h2 className="font-semibold text-xl">Society Details</h2>
+
+          {/* FORM FIELDS */}
+          <OnboardingForm />
+
+          {/* FOOTER */}
+          <FieldDescription className="px-6 text-center">
+            By clicking continue, you agree to our <a href="#">Terms of Service</a> and{" "}
+            <a href="#">Privacy Policy</a>.
+          </FieldDescription>
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">{/* <SignupForm /> */}</div>
-        </div>
-      </div>
-      <div className="bg-muted relative hidden lg:block">
-        <img
-          src="/placeholder.svg"
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-        />
       </div>
     </div>
   );
