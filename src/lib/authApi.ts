@@ -12,6 +12,10 @@ interface LoginPayload {
   phone: string;
 }
 
+interface MemberExistsPayload {
+  phone: string;
+}
+
 interface CreateSocietyPayload {
   name: string;
   subDomainName: string;
@@ -55,6 +59,11 @@ export const loginMember = async (payload: LoginPayload) => {
   return data;
 };
 
+export const checkMemberExists = async (payload: MemberExistsPayload) => {
+  const { data } = await apiClient.post<{ exists: boolean }>("/members/exists", payload);
+  return data.exists;
+};
+
 export const fetchMemberSocieties = async () => {
   const { data } = await apiClient.get<{ societies: SocietySummary[] }>(
     "/societies/member-societies",
@@ -78,7 +87,7 @@ export const createSociety = async (payload: CreateSocietyPayload) => {
       id: string;
       name: string;
       subDomainName: string;
-      status: "CREATED";
+      status: "CREATED" | "PERMIT_PENDING" | "RAZORPAY_PENDING" | "ACTIVE";
     };
     membership: {
       id: string;
@@ -86,6 +95,15 @@ export const createSociety = async (payload: CreateSocietyPayload) => {
     };
   }>("/societies", payload);
 
+  return data;
+};
+
+export const setupPermitRules = async (societyId: string) => {
+  const { data } = await apiClient.post<{
+    societyId: string;
+    status: "CREATED" | "PERMIT_PENDING" | "RAZORPAY_PENDING" | "ACTIVE";
+    nextRoute: string;
+  }>("/societies/permit/setup", { societyId });
   return data;
 };
 
@@ -136,7 +154,7 @@ export const verifySignupPhoneOtp = async ({ phone, otp }: VerifyPhoneOtpPayload
 export const sendSignupEmailOtp = async ({ email }: EmailOtpPayload) => {
   const { data } = await apiClient.post<{ message: string }>("/otp/email/send", {
     email,
-    reason: "verify-emial",
+    reason: "verify-email",
   });
   return data;
 };
@@ -145,7 +163,7 @@ export const verifySignupEmailOtp = async ({ email, otp }: VerifyEmailOtpPayload
   const { data } = await apiClient.post<{ message: string }>("/otp/email/verify", {
     email,
     otp,
-    reason: "verify-emial",
+    reason: "verify-email",
   });
   return data;
 };

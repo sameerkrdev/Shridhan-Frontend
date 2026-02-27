@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/input-otp";
 import { useNavigate } from "react-router";
 import {
+  useCheckMemberExistsMutation,
   useLoginMutation,
   useSendLoginOtpMutation,
   useVerifyLoginOtpMutation,
@@ -39,6 +40,7 @@ export function LoginFormFields() {
   const [step, setStep] = React.useState<"login" | "otp">("login");
   const [phone, setPhone] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
+  const checkMemberExistsMutation = useCheckMemberExistsMutation();
   const loginMutation = useLoginMutation();
   const sendLoginOtpMutation = useSendLoginOtpMutation();
   const verifyLoginOtpMutation = useVerifyLoginOtpMutation();
@@ -66,6 +68,14 @@ export function LoginFormFields() {
     setPhone(values.phone);
     setFormError(null);
     try {
+      const exists = await checkMemberExistsMutation.mutateAsync({ phone: values.phone });
+      if (!exists) {
+        const message = "Phone number is not registered";
+        setFormError(message);
+        toast.error(message);
+        return;
+      }
+
       await sendLoginOtpMutation.mutateAsync({ phone: values.phone });
       toast.success("OTP Sent", {
         description: `A 6-digit verification code was sent to ${values.phone}.`,
@@ -138,9 +148,18 @@ export function LoginFormFields() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loginMutation.isPending || sendLoginOtpMutation.isPending}
+            disabled={
+              loginMutation.isPending ||
+              sendLoginOtpMutation.isPending ||
+              checkMemberExistsMutation.isPending
+            }
           >
-            {sendLoginOtpMutation.isPending ? (
+            {checkMemberExistsMutation.isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Checking...
+              </span>
+            ) : sendLoginOtpMutation.isPending ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
                 Sending OTP...

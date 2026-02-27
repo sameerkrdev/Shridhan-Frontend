@@ -45,6 +45,21 @@ const data = {
       url: "#",
       icon: IconChartBar,
     },
+    {
+      title: "Permissions",
+      url: "/settings/permissions",
+      icon: IconSettings,
+    },
+    {
+      title: "Roles",
+      url: "/settings/roles",
+      icon: IconSettings,
+    },
+    {
+      title: "Member Roles",
+      url: "/settings/member-roles",
+      icon: IconUsers,
+    },
   ],
   navSecondary: [
     {

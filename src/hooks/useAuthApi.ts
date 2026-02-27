@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  checkMemberExists,
   createSociety,
   fetchMemberSocieties,
   loginMember,
@@ -9,6 +10,7 @@ import {
   sendLoginOtp,
   sendSignupEmailOtp,
   sendSignupPhoneOtp,
+  setupPermitRules,
   signupMember,
   verifyLoginOtp,
   verifySignupEmailOtp,
@@ -24,6 +26,12 @@ export const useSignupMutation = () => {
 export const useLoginMutation = () => {
   return useMutation({
     mutationFn: loginMember,
+  });
+};
+
+export const useCheckMemberExistsMutation = () => {
+  return useMutation({
+    mutationFn: checkMemberExists,
   });
 };
 
@@ -50,6 +58,12 @@ export const useCreateSocietyMutation = () => {
 export const useRefreshSessionMutation = () => {
   return useMutation({
     mutationFn: refreshSession,
+  });
+};
+
+export const useSetupPermitRulesMutation = () => {
+  return useMutation({
+    mutationFn: setupPermitRules,
   });
 };
 

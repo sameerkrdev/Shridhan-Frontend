@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useCreateSocietyMutation } from "@/hooks/useAuthApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorMessage, getApiValidationErrors } from "@/lib/apiError";
 
 const OnboardingForm = () => {
   const navigate = useNavigate();
@@ -24,6 +24,8 @@ const OnboardingForm = () => {
     handleSubmit,
     control,
     setValue,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<OnboardingSchemaType>({
     resolver: zodResolver(onboardingSchema),
@@ -40,6 +42,7 @@ const OnboardingForm = () => {
 
   const onSubmit = async (data: OnboardingSchemaType) => {
     setFormError(null);
+    clearErrors();
     try {
       const payload = await createSocietyMutation.mutateAsync({
         name: data.societyName,
@@ -62,8 +65,31 @@ const OnboardingForm = () => {
 
       navigate("/onboarding/permit");
     } catch (error) {
+      const backendFieldErrors = getApiValidationErrors(error);
+      const fieldMap: Partial<Record<string, keyof OnboardingSchemaType>> = {
+        name: "societyName",
+        subDomainName: "subdomain",
+        country: "country",
+        state: "state",
+        city: "city",
+        zipcode: "zipcode",
+      };
+
+      const mappedEntries = Object.entries(backendFieldErrors)
+        .map(([key, value]) => {
+          const targetField = fieldMap[key];
+          return targetField ? ([targetField, value] as const) : null;
+        })
+        .filter((entry): entry is readonly [keyof OnboardingSchemaType, string] => Boolean(entry));
+
+      mappedEntries.forEach(([field, message]) => {
+        setError(field, { type: "server", message });
+      });
+
       const message = getApiErrorMessage(error, "Unable to create society");
-      setFormError(message);
+      if (mappedEntries.length === 0) {
+        setFormError(message);
+      }
       toast.error(message);
     }
   };

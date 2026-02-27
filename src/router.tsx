@@ -12,6 +12,9 @@ import MemberFlowLayout from "@/layouts/MemberFlowLayout";
 import SocietySelectorPage from "@/pages/SocietySelectorPage";
 import PermitPendingPage from "@/pages/PermitPendingPage";
 import RazorpayPendingPage from "@/pages/RazorpayPendingPage";
+import PermissionsManagementPage from "@/pages/PermissionsManagementPage";
+import RolesManagementPage from "@/pages/RolesManagementPage";
+import MemberRoleAssignmentPage from "@/pages/MemberRoleAssignmentPage";
 
 const router = createBrowserRouter([
   {
@@ -29,6 +32,18 @@ const router = createBrowserRouter([
           {
             path: "teams",
             element: <TeamsPage />,
+          },
+          {
+            path: "settings/permissions",
+            element: <PermissionsManagementPage />,
+          },
+          {
+            path: "settings/roles",
+            element: <RolesManagementPage />,
+          },
+          {
+            path: "settings/member-roles",
+            element: <MemberRoleAssignmentPage />,
           },
         ],
       },

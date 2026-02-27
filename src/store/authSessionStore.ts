@@ -83,7 +83,6 @@ export const useAuthSessionStore = create<AuthSessionState>()(
         state?.setHydrated(true);
       },
       partialize: (state) => ({
-        selectedSociety: state.selectedSociety,
         hadSession: state.hadSession,
       }),
     },
