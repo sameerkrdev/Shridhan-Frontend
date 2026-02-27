@@ -8,6 +8,10 @@ import LoginPage from "@/pages/LoginPage";
 import IndexPage from "@/pages/IndexPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import SignupPage from "@/pages/SignupPage";
+import MemberFlowLayout from "@/layouts/MemberFlowLayout";
+import SocietySelectorPage from "@/pages/SocietySelectorPage";
+import PermitPendingPage from "@/pages/PermitPendingPage";
+import RazorpayPendingPage from "@/pages/RazorpayPendingPage";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +32,27 @@ const router = createBrowserRouter([
           },
         ],
       },
+      {
+        element: <MemberFlowLayout />,
+        children: [
+          {
+            path: "society-selector",
+            element: <SocietySelectorPage />,
+          },
+          {
+            path: "onboarding",
+            element: <OnboardingPage />,
+          },
+          {
+            path: "onboarding/permit",
+            element: <PermitPendingPage />,
+          },
+          {
+            path: "onboarding/razorpay",
+            element: <RazorpayPendingPage />,
+          },
+        ],
+      },
 
       // Public (unauthenticated) routes
       {
@@ -40,10 +65,6 @@ const router = createBrowserRouter([
           {
             path: "register",
             element: <SignupPage />,
-          },
-          {
-            path: "onboarding",
-            element: <OnboardingPage />,
           },
           {
             path: "index", // Todo: For now, we are adding path /index to show the index but when authentication is ready then routing will be based on it.

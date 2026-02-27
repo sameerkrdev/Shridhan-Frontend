@@ -1,10 +1,33 @@
-import { Outlet } from "react-router";
+import { Navigate, Outlet } from "react-router";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { useAuthSessionStore } from "@/store/authSessionStore";
+import { getRouteForSocietyStatus } from "@/lib/societyRouting";
+import FullPageLoader from "@/components/ui/full-page-loader";
 
 const AuthorizedLayout = () => {
+  const isHydrated = useAuthSessionStore((state) => state.isHydrated);
+  const isAuthenticated = useAuthSessionStore((state) => state.isAuthenticated);
+  const selectedSociety = useAuthSessionStore((state) => state.selectedSociety);
+
+  if (!isHydrated) {
+    return <FullPageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!selectedSociety) {
+    return <Navigate to="/society-selector" replace />;
+  }
+
+  if (selectedSociety.status !== "ACTIVE") {
+    return <Navigate to={getRouteForSocietyStatus(selectedSociety.status)} replace />;
+  }
+
   return (
     <div>
       <SidebarProvider

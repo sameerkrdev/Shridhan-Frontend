@@ -43,7 +43,9 @@ const LocationSelect: React.FC<LocationSelectProps> = ({ control, setValue, erro
     <>
       {/* COUNTRY */}
       <Field>
-        <FieldLabel>Country</FieldLabel>
+        <FieldLabel>
+          Country <span className="text-red-500">*</span>
+        </FieldLabel>
 
         <Select
           onValueChange={(value) => {
@@ -69,7 +71,9 @@ const LocationSelect: React.FC<LocationSelectProps> = ({ control, setValue, erro
 
       {/* STATE */}
       <Field>
-        <FieldLabel>State</FieldLabel>
+        <FieldLabel>
+          State <span className="text-red-500">*</span>
+        </FieldLabel>
 
         <Select
           disabled={!countryField.value}
@@ -95,7 +99,9 @@ const LocationSelect: React.FC<LocationSelectProps> = ({ control, setValue, erro
 
       {/* CITY */}
       <Field>
-        <FieldLabel>City</FieldLabel>
+        <FieldLabel>
+          City <span className="text-red-500">*</span>
+        </FieldLabel>
 
         <Select disabled={!stateField.value} onValueChange={(value) => cityField.onChange(value)}>
           <SelectTrigger>
