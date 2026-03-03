@@ -1,15 +1,17 @@
 import axios from "axios";
 import { useAuthSessionStore } from "@/store/authSessionStore";
-import type { AuthResponse } from "@/types/auth";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 export const apiClient = axios.create({
   baseURL,
   withCredentials: true,
+  headers: {
+    "ngrok-skip-browser-warning": "true",
+  },
 });
 
-let refreshPromise: Promise<AuthResponse> | null = null;
+let refreshPromise: Promise<void> | null = null;
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -21,6 +23,10 @@ apiClient.interceptors.response.use(
     };
     const status = error.response?.status as number | undefined;
 
+    if (status === 403) {
+      return Promise.reject(error);
+    }
+
     if (status !== 401 || originalRequest?._retry) {
       return Promise.reject(error);
     }
@@ -30,26 +36,21 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const { clearSession, setAuthPayload } = useAuthSessionStore.getState();
+    const { clearSession } = useAuthSessionStore.getState();
 
     originalRequest._retry = true;
 
     try {
       if (!refreshPromise) {
         refreshPromise = axios
-          .post<AuthResponse>(
-            `${baseURL}/members/refresh`,
-            {},
-            { withCredentials: true },
-          )
-          .then((response) => response.data)
+          .post(`${baseURL}/members/refresh`, {}, { withCredentials: true })
+          .then(() => undefined)
           .finally(() => {
             refreshPromise = null;
           });
       }
 
-      const refreshed = await refreshPromise;
-      setAuthPayload(refreshed);
+      await refreshPromise;
       return apiClient(originalRequest);
     } catch (refreshError) {
       clearSession();

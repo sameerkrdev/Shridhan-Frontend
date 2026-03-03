@@ -141,7 +141,6 @@ const SignupForm = () => {
         name: data.name,
         phone: data.phone,
         email: data.email,
-        role: "SUPER_ADMIN",
       });
       setAuthPayload(payload);
 

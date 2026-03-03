@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,149 +16,268 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { IconUserPlus } from "@tabler/icons-react";
-
-interface TeamMember {
-  id: number;
-  name: string;
-  email: string;
-  phoneNumber: string;
-  role: string;
-}
+import { IconSearch, IconUserPlus, IconLoader2 } from "@tabler/icons-react";
+import {
+  useSearchUserMutation,
+  useAddMemberMutation,
+  useAssignableRoleOptionsQuery,
+} from "@/hooks/useMembershipApi";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/apiError";
+import type { User } from "@/types/auth";
 
 interface AddMemberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddMember: (member: Omit<TeamMember, "id">) => void;
-  availableRoles: string[];
+  societyId: string;
 }
+
+type Step = "search" | "found" | "create";
 
 export const AddMemberDialog = ({
   open,
   onOpenChange,
-  onAddMember,
-  availableRoles,
+  societyId,
 }: AddMemberDialogProps) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phoneNumber: "",
-    role: "",
-  });
+  const [step, setStep] = useState<Step>("search");
+  const [searchInput, setSearchInput] = useState("");
+  const [foundUser, setFoundUser] = useState<User | null>(null);
+  const [roleId, setRoleId] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
-  const handleSubmit = () => {
-    // Validate form
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.phoneNumber ||
-      !formData.role
-    ) {
-      alert("Please fill in all fields");
-      return;
+  const searchMutation = useSearchUserMutation();
+  const addMutation = useAddMemberMutation(societyId);
+  const { data: roleOptions, isLoading: isRoleOptionsLoading } = useAssignableRoleOptionsQuery(
+    societyId || null,
+  );
+
+  const availableRoles = [...(roleOptions?.baseRoles ?? []), ...(roleOptions?.customRoles ?? [])];
+
+  useEffect(() => {
+    if (availableRoles.length === 0) return;
+    if (!availableRoles.some((availableRole) => availableRole.id === roleId)) {
+      setRoleId(availableRoles[0]?.id ?? "");
     }
+  }, [availableRoles, roleId]);
 
-    onAddMember(formData);
-
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      phoneNumber: "",
-      role: "",
-    });
-
-    onOpenChange(false);
+  const reset = () => {
+    setStep("search");
+    setSearchInput("");
+    setFoundUser(null);
+    setRoleId(availableRoles[0]?.id ?? "");
+    setName("");
+    setEmail("");
+    setPhone("");
+    searchMutation.reset();
+    addMutation.reset();
   };
 
-  const handleCancel = () => {
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      phoneNumber: "",
-      role: "",
-    });
-    onOpenChange(false);
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) reset();
+    onOpenChange(isOpen);
+  };
+
+  const handleSearch = async () => {
+    if (!searchInput.trim()) return;
+    try {
+      const result = await searchMutation.mutateAsync(searchInput.trim());
+      if (result.found && result.user) {
+        setFoundUser(result.user);
+        setStep("found");
+      } else {
+        setStep("create");
+        if (searchInput.includes("@")) {
+          setEmail(searchInput.trim());
+        } else {
+          setPhone(searchInput.trim());
+        }
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Search failed"));
+    }
+  };
+
+  const handleAddExisting = async () => {
+    if (!foundUser) return;
+    try {
+      await addMutation.mutateAsync({
+        userId: foundUser.id,
+        email: foundUser.email,
+        roleId,
+      });
+      toast.success(`${foundUser.name} has been added to the society`);
+      handleClose(false);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Failed to add member"));
+    }
+  };
+
+  const handleCreateAndAdd = async () => {
+    if (!name.trim() || !phone.trim() || !email.trim()) {
+      toast.error("Name, email and phone are required");
+      return;
+    }
+    try {
+      await addMutation.mutateAsync({
+        name,
+        email,
+        phone,
+        roleId,
+      });
+      toast.success(`${name} has been created and added to the society`);
+      handleClose(false);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Failed to create and add member"));
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Add New Team Member</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <IconUserPlus className="h-5 w-5" />
+            Add Member
+          </DialogTitle>
           <DialogDescription>
-            Enter the details for the new team member
+            {step === "search" && "Search for an existing user by email or phone number"}
+            {step === "found" && "User found! Choose their access level and add them."}
+            {step === "create" && "User not found. Enter their details to create and add them."}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="add-name">Name</Label>
-            <Input
-              id="add-name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              placeholder="Enter name"
-            />
+
+        {step === "search" && (
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="search">Email or Phone</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="search"
+                  placeholder="Enter email or phone number"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+                <Button
+                  onClick={handleSearch}
+                  disabled={searchMutation.isPending || !searchInput.trim()}
+                >
+                  {searchMutation.isPending ? (
+                    <IconLoader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <IconSearch className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="add-email">Email</Label>
-            <Input
-              id="add-email"
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              placeholder="Enter email"
-            />
+        )}
+
+        {step === "found" && foundUser && (
+          <div className="space-y-4 pt-2">
+            <div className="rounded-lg border p-4 bg-muted/50 space-y-2">
+              <div>
+                <span className="text-sm text-muted-foreground">Name</span>
+                <p className="font-medium">{foundUser.name}</p>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Email</span>
+                <p className="text-sm">{foundUser.email ?? "—"}</p>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Phone</span>
+                <p className="text-sm font-mono">{foundUser.phone}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Access Level</Label>
+              <Select value={roleId} onValueChange={(val) => setRoleId(val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isRoleOptionsLoading ? "Loading..." : "Select access level"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={reset} className="flex-1">
+                Back
+              </Button>
+              <Button onClick={handleAddExisting} disabled={addMutation.isPending} className="flex-1">
+                {addMutation.isPending ? (
+                  <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Add to Society
+              </Button>
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="add-phone">Phone Number</Label>
-            <Input
-              id="add-phone"
-              value={formData.phoneNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, phoneNumber: e.target.value })
-              }
-              placeholder="Enter phone number"
-            />
+        )}
+
+        {step === "create" && (
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                placeholder="Full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                placeholder="Phone number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Access Level</Label>
+              <Select value={roleId} onValueChange={(val) => setRoleId(val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isRoleOptionsLoading ? "Loading..." : "Select access level"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={reset} className="flex-1">
+                Back
+              </Button>
+              <Button onClick={handleCreateAndAdd} disabled={addMutation.isPending} className="flex-1">
+                {addMutation.isPending ? (
+                  <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Create & Add
+              </Button>
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="add-role">Role</Label>
-            <Select
-              value={formData.role}
-              onValueChange={(value) =>
-                setFormData({ ...formData, role: value })
-              }
-            >
-              <SelectTrigger id="add-role">
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableRoles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} className="gap-2">
-            <IconUserPlus className="h-4 w-4" />
-            Add Member
-          </Button>
-        </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

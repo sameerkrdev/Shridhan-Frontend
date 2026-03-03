@@ -21,37 +21,28 @@ const toReadableLabel = (value: string) =>
 
 const getStatusVariant = (status: string): "default" | "secondary" | "outline" | "destructive" => {
   const normalizedStatus = status.toUpperCase();
-
-  if (normalizedStatus === "ACTIVE") {
-    return "default";
-  }
-
-  if (normalizedStatus.includes("FAILED") || normalizedStatus.includes("CANCELLED")) {
-    return "destructive";
-  }
-
-  if (normalizedStatus.includes("PENDING") || normalizedStatus === "CREATED") {
-    return "secondary";
-  }
-
+  if (normalizedStatus === "ACTIVE") return "default";
+  if (normalizedStatus.includes("FAILED") || normalizedStatus.includes("CANCELLED")) return "destructive";
+  if (normalizedStatus.includes("PENDING") || normalizedStatus === "CREATED") return "secondary";
   return "outline";
 };
 
 const SocietySelectorPage = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAuthSessionStore((state) => state.isAuthenticated);
-  const societies = useAuthSessionStore((state) => state.societies);
-  const setSocieties = useAuthSessionStore((state) => state.setSocieties);
+  const memberships = useAuthSessionStore((state) => state.memberships);
+  const setMemberships = useAuthSessionStore((state) => state.setMemberships);
   const setResolvedSociety = useAuthSessionStore((state) => state.setResolvedSociety);
 
-  const { data, isLoading } = useMemberSocietiesQuery(isAuthenticated);
+  const shouldFetchMemberships = isAuthenticated && memberships.length === 0;
+  const { data, isLoading } = useMemberSocietiesQuery(shouldFetchMemberships);
   const resolveSocietyMutation = useResolveSelectedSocietyMutation();
 
   useEffect(() => {
     if (data) {
-      setSocieties(data);
+      setMemberships(data);
     }
-  }, [data, setSocieties]);
+  }, [data, setMemberships]);
 
   const handleSelectSociety = async (societyId: string) => {
     try {
@@ -80,7 +71,7 @@ const SocietySelectorPage = () => {
             <CardHeader className="gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-2xl">Select Society</CardTitle>
-                <Badge variant="secondary">{societies.length} Available</Badge>
+                <Badge variant="secondary">{memberships.length} Available</Badge>
               </div>
               <CardDescription className="text-sm">
                 Continue with an existing society or create a new one to onboard your team.
@@ -98,17 +89,17 @@ const SocietySelectorPage = () => {
             </Card>
           )}
 
-          {societies.map((society) => (
+          {memberships.map((m) => (
             <Card
-              key={society.societyId}
+              key={m.societyId}
               className="group border-border/70 bg-card/70 transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <CardTitle className="line-clamp-1">{society.societyName}</CardTitle>
+                    <CardTitle className="line-clamp-1">{m.societyName}</CardTitle>
                     <CardDescription className="line-clamp-1 text-xs">
-                      {society.subDomainName}.shridhan.app
+                      {m.subDomainName}.shridhan.app
                     </CardDescription>
                   </div>
                   <Building2 className="text-muted-foreground mt-0.5 size-4 shrink-0" />
@@ -116,16 +107,16 @@ const SocietySelectorPage = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant={getStatusVariant(society.status)}>
-                    Status: {toReadableLabel(society.status)}
+                  <Badge variant={getStatusVariant(m.societyStatus)}>
+                    Status: {toReadableLabel(m.societyStatus)}
                   </Badge>
-                  <Badge variant="outline">Role: {toReadableLabel(society.role)}</Badge>
+                  <Badge variant="outline">Access: {toReadableLabel(m.role)}</Badge>
                 </div>
               </CardContent>
               <CardFooter>
                 <Button
                   className="w-full justify-between"
-                  onClick={() => handleSelectSociety(society.societyId)}
+                  onClick={() => handleSelectSociety(m.societyId)}
                   disabled={resolveSocietyMutation.isPending}
                 >
                   <span>{resolveSocietyMutation.isPending ? "Please wait..." : "Continue"}</span>

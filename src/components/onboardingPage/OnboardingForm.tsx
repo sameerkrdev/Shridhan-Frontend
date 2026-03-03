@@ -17,7 +17,7 @@ import { getApiErrorMessage, getApiValidationErrors } from "@/lib/apiError";
 const OnboardingForm = () => {
   const navigate = useNavigate();
   const createSocietyMutation = useCreateSocietyMutation();
-  const setSelectedSociety = useAuthSessionStore((state) => state.setSelectedSociety);
+  const setSelectedMembership = useAuthSessionStore((state) => state.setSelectedMembership);
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -54,16 +54,19 @@ const OnboardingForm = () => {
         logoUrl: "https://dummy.local/logo.png",
       });
 
-      setSelectedSociety({
-        memberId: payload.membership.id,
+      setSelectedMembership({
+        membershipId: payload.membership.id,
         societyId: payload.society.id,
-        role: payload.membership.role,
+        role: payload.membership.role.name,
+        roleId: payload.membership.role.id,
+        permissions: payload.membership.role.permissions,
+        status: payload.membership.status,
         societyName: payload.society.name,
         subDomainName: payload.society.subDomainName,
-        status: payload.society.status,
+        societyStatus: payload.society.status,
       });
 
-      navigate("/onboarding/permit");
+      navigate("/");
     } catch (error) {
       const backendFieldErrors = getApiValidationErrors(error);
       const fieldMap: Partial<Record<string, keyof OnboardingSchemaType>> = {

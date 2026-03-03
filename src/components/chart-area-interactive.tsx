@@ -13,11 +13,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import type { ChartConfig } from "@/components/ui/chart"
 import {
   Select,
   SelectContent,
@@ -29,6 +29,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/ui/toggle-group"
+import { formatDate } from "@/lib/dateFormat"
 
 export const description = "An interactive area chart"
 
@@ -180,7 +181,7 @@ export function ChartAreaInteractive() {
             value={timeRange}
             onValueChange={setTimeRange}
             variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex"
+            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
           >
             <ToggleGroupItem value="90d">Last 3 months</ToggleGroupItem>
             <ToggleGroupItem value="30d">Last 30 days</ToggleGroupItem>
@@ -248,11 +249,7 @@ export function ChartAreaInteractive() {
               tickMargin={8}
               minTickGap={32}
               tickFormatter={(value) => {
-                const date = new Date(value)
-                return date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })
+                return formatDate(value)
               }}
             />
             <ChartTooltip
@@ -260,10 +257,7 @@ export function ChartAreaInteractive() {
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })
+                    return formatDate(value)
                   }}
                   indicator="dot"
                 />

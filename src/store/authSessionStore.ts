@@ -2,23 +2,23 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   AuthResponse,
-  Member,
+  User,
   ResolveSocietyResponse,
   RouteIntent,
-  SocietySummary,
+  MembershipSummary,
 } from "@/types/auth";
 
 interface AuthSessionState {
-  member: Member | null;
+  user: User | null;
   routeIntent: RouteIntent | null;
-  societies: SocietySummary[];
-  selectedSociety: SocietySummary | null;
+  memberships: MembershipSummary[];
+  selectedMembership: MembershipSummary | null;
   isAuthenticated: boolean;
   hadSession: boolean;
   isHydrated: boolean;
   setAuthPayload: (payload: AuthResponse) => void;
-  setSocieties: (societies: SocietySummary[]) => void;
-  setSelectedSociety: (society: SocietySummary) => void;
+  setMemberships: (memberships: MembershipSummary[]) => void;
+  setSelectedMembership: (membership: MembershipSummary) => void;
   setResolvedSociety: (resolved: ResolveSocietyResponse) => void;
   setIsAuthenticated: (isAuthenticated: boolean) => void;
   setHydrated: (isHydrated: boolean) => void;
@@ -26,10 +26,10 @@ interface AuthSessionState {
 }
 
 const initialState = {
-  member: null,
+  user: null,
   routeIntent: null,
-  societies: [],
-  selectedSociety: null,
+  memberships: [],
+  selectedMembership: null,
   isAuthenticated: false,
   hadSession: false,
   isHydrated: false,
@@ -41,37 +41,38 @@ export const useAuthSessionStore = create<AuthSessionState>()(
       ...initialState,
       setAuthPayload: (payload) =>
         set((state) => {
-          const selectedSociety =
-            state.selectedSociety &&
-            payload.societies.some((society) => society.societyId === state.selectedSociety?.societyId)
-              ? state.selectedSociety
+          const selectedMembership =
+            state.selectedMembership &&
+            payload.memberships.some((m) => m.societyId === state.selectedMembership?.societyId)
+              ? state.selectedMembership
               : null;
 
           return {
-            member: payload.member,
+            user: payload.user,
             routeIntent: payload.routeIntent,
-            societies: payload.societies,
-            selectedSociety,
+            memberships: payload.memberships,
+            selectedMembership,
             isAuthenticated: true,
             hadSession: true,
           };
         }),
-      setSocieties: (societies) => set({ societies }),
-      setSelectedSociety: (society) => set({ selectedSociety: society }),
+      setMemberships: (memberships) => set({ memberships }),
+      setSelectedMembership: (membership) => set({ selectedMembership: membership }),
       setResolvedSociety: (resolved) => {
-        const matchedSociety = get().societies.find(
-          (society) => society.societyId === resolved.societyId,
-        );
-        const selectedSociety: SocietySummary = matchedSociety ?? {
-          memberId: resolved.memberId,
+        const matched = get().memberships.find((m) => m.societyId === resolved.societyId);
+        const selectedMembership: MembershipSummary = matched ?? {
+          membershipId: resolved.membershipId,
           societyId: resolved.societyId,
           role: resolved.role,
+          roleId: resolved.roleId,
+          permissions: resolved.permissions,
+          status: resolved.status,
           societyName: resolved.societyName,
           subDomainName: resolved.subDomainName,
-          status: resolved.status,
+          societyStatus: resolved.societyStatus,
         };
 
-        set({ selectedSociety });
+        set({ selectedMembership });
       },
       setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setHydrated: (isHydrated) => set({ isHydrated }),

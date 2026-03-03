@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { refreshSession } from "@/lib/authApi";
+import { fetchSession } from "@/lib/authApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 
 const AuthSessionBootstrap = () => {
@@ -14,7 +14,7 @@ const AuthSessionBootstrap = () => {
     if (!hadSession) return;
 
     hasRequestedRefresh.current = true;
-    void refreshSession()
+    void fetchSession()
       .then((payload) => {
         setAuthPayload(payload);
       })

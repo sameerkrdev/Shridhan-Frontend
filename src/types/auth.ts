@@ -1,39 +1,49 @@
 export type RouteIntent = "CREATE_NEW_SOCIETY" | "SOCIETY_SELECTOR";
 
-export type SocietyStatus = "CREATED" | "PERMIT_PENDING" | "RAZORPAY_PENDING" | "ACTIVE";
+export type SocietyStatus = "CREATED" | "RAZORPAY_PENDING" | "ACTIVE";
 
-export interface Member {
+export type MembershipRole = string;
+export type MembershipStatus = "active" | "suspended";
+
+export interface User {
   id: string;
   name: string;
   phone: string;
-  email: string | null;
-  role: string;
-  societyId: string | null;
+  email: string;
+  avatar: string | null;
 }
 
-export interface SocietySummary {
-  memberId: string;
+export interface MembershipSummary {
+  membershipId: string;
   societyId: string;
-  role: string;
+  role: MembershipRole;
+  roleId: string;
+  permissions: string[];
+  status: MembershipStatus;
   societyName: string;
   subDomainName: string;
-  status: SocietyStatus;
+  societyStatus: SocietyStatus;
 }
 
 export interface AuthResponse {
-  member: Member;
-  accessToken: string;
-  refreshToken: string;
+  user: User;
   routeIntent: RouteIntent;
-  societies: SocietySummary[];
+  memberships: MembershipSummary[];
+}
+
+export interface RefreshSessionResponse {
+  success: boolean;
 }
 
 export interface ResolveSocietyResponse {
-  memberId: string;
+  membershipId: string;
   societyId: string;
   societyName: string;
   subDomainName: string;
-  status: SocietyStatus;
-  role: string;
+  societyStatus: SocietyStatus;
+  role: MembershipRole;
+  roleId: string;
+  permissions: string[];
+  status: MembershipStatus;
   nextRoute: string;
 }

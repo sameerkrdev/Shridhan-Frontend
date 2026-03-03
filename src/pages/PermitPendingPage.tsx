@@ -8,23 +8,23 @@ import { useSetupPermitRulesMutation } from "@/hooks/useAuthApi";
 
 const PermitPendingPage = () => {
   const navigate = useNavigate();
-  const selectedSociety = useAuthSessionStore((state) => state.selectedSociety);
-  const setSelectedSociety = useAuthSessionStore((state) => state.setSelectedSociety);
+  const selectedMembership = useAuthSessionStore((state) => state.selectedMembership);
+  const setSelectedMembership = useAuthSessionStore((state) => state.setSelectedMembership);
   const setupPermitRulesMutation = useSetupPermitRulesMutation();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const runSetup = async () => {
-    if (!selectedSociety?.societyId) {
+    if (!selectedMembership?.societyId) {
       setErrorMessage("Society not found");
       return;
     }
 
     setErrorMessage(null);
     try {
-      const response = await setupPermitRulesMutation.mutateAsync(selectedSociety.societyId);
-      setSelectedSociety({
-        ...selectedSociety,
-        status: response.status,
+      const response = await setupPermitRulesMutation.mutateAsync(selectedMembership.societyId);
+      setSelectedMembership({
+        ...selectedMembership,
+        societyStatus: response.status,
       });
       navigate(response.nextRoute, { replace: true });
     } catch (error) {

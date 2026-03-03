@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  checkMemberExists,
+  checkUserExists,
+  createSetupFeeLink,
   createSociety,
+  fetchSocietyBillingOverview,
   fetchMemberSocieties,
-  loginMember,
+  loginUser,
   logoutSession,
   refreshSession,
   resolveSelectedSociety,
@@ -11,28 +13,23 @@ import {
   sendSignupEmailOtp,
   sendSignupPhoneOtp,
   setupPermitRules,
-  signupMember,
+  setupSubscription,
+  signupUser,
   verifyLoginOtp,
   verifySignupEmailOtp,
   verifySignupPhoneOtp,
 } from "@/lib/authApi";
 
 export const useSignupMutation = () => {
-  return useMutation({
-    mutationFn: signupMember,
-  });
+  return useMutation({ mutationFn: signupUser });
 };
 
 export const useLoginMutation = () => {
-  return useMutation({
-    mutationFn: loginMember,
-  });
+  return useMutation({ mutationFn: loginUser });
 };
 
-export const useCheckMemberExistsMutation = () => {
-  return useMutation({
-    mutationFn: checkMemberExists,
-  });
+export const useCheckUserExistsMutation = () => {
+  return useMutation({ mutationFn: checkUserExists });
 };
 
 export const useMemberSocietiesQuery = (enabled: boolean) => {
@@ -44,67 +41,62 @@ export const useMemberSocietiesQuery = (enabled: boolean) => {
 };
 
 export const useResolveSelectedSocietyMutation = () => {
-  return useMutation({
-    mutationFn: resolveSelectedSociety,
-  });
+  return useMutation({ mutationFn: resolveSelectedSociety });
 };
 
 export const useCreateSocietyMutation = () => {
-  return useMutation({
-    mutationFn: createSociety,
-  });
+  return useMutation({ mutationFn: createSociety });
 };
 
 export const useRefreshSessionMutation = () => {
-  return useMutation({
-    mutationFn: refreshSession,
-  });
+  return useMutation({ mutationFn: refreshSession });
 };
 
 export const useSetupPermitRulesMutation = () => {
-  return useMutation({
-    mutationFn: setupPermitRules,
+  return useMutation({ mutationFn: setupPermitRules });
+};
+
+export const useSetupSubscriptionMutation = () => {
+  return useMutation({ mutationFn: setupSubscription });
+};
+
+export const useCreateSetupFeeLinkMutation = () => {
+  return useMutation({ mutationFn: createSetupFeeLink });
+};
+
+export const useSocietyBillingOverviewQuery = (societyId: string | null, enabled: boolean) => {
+  return useQuery({
+    queryKey: ["society-billing-overview", societyId],
+    queryFn: () => fetchSocietyBillingOverview(societyId!),
+    enabled: enabled && Boolean(societyId),
+    staleTime: 60 * 1000,
   });
 };
 
 export const useLogoutMutation = () => {
-  return useMutation({
-    mutationFn: logoutSession,
-  });
+  return useMutation({ mutationFn: logoutSession });
 };
 
 export const useSendLoginOtpMutation = () => {
-  return useMutation({
-    mutationFn: sendLoginOtp,
-  });
+  return useMutation({ mutationFn: sendLoginOtp });
 };
 
 export const useVerifyLoginOtpMutation = () => {
-  return useMutation({
-    mutationFn: verifyLoginOtp,
-  });
+  return useMutation({ mutationFn: verifyLoginOtp });
 };
 
 export const useSendSignupPhoneOtpMutation = () => {
-  return useMutation({
-    mutationFn: sendSignupPhoneOtp,
-  });
+  return useMutation({ mutationFn: sendSignupPhoneOtp });
 };
 
 export const useVerifySignupPhoneOtpMutation = () => {
-  return useMutation({
-    mutationFn: verifySignupPhoneOtp,
-  });
+  return useMutation({ mutationFn: verifySignupPhoneOtp });
 };
 
 export const useSendSignupEmailOtpMutation = () => {
-  return useMutation({
-    mutationFn: sendSignupEmailOtp,
-  });
+  return useMutation({ mutationFn: sendSignupEmailOtp });
 };
 
 export const useVerifySignupEmailOtpMutation = () => {
-  return useMutation({
-    mutationFn: verifySignupEmailOtp,
-  });
+  return useMutation({ mutationFn: verifySignupEmailOtp });
 };

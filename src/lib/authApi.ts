@@ -1,18 +1,22 @@
 import { apiClient } from "@/lib/apiClient";
-import type { AuthResponse, ResolveSocietyResponse, SocietySummary } from "@/types/auth";
+import type {
+  AuthResponse,
+  RefreshSessionResponse,
+  ResolveSocietyResponse,
+  MembershipSummary,
+} from "@/types/auth";
 
 interface SignupPayload {
   name: string;
   phone: string;
   email: string;
-  role: string;
 }
 
 interface LoginPayload {
   phone: string;
 }
 
-interface MemberExistsPayload {
+interface UserExistsPayload {
   phone: string;
 }
 
@@ -49,34 +53,32 @@ interface VerifyEmailOtpPayload {
   otp: string;
 }
 
-export const signupMember = async (payload: SignupPayload) => {
+export const signupUser = async (payload: SignupPayload) => {
   const { data } = await apiClient.post<AuthResponse>("/members/signup", payload);
   return data;
 };
 
-export const loginMember = async (payload: LoginPayload) => {
+export const loginUser = async (payload: LoginPayload) => {
   const { data } = await apiClient.post<AuthResponse>("/members/login", payload);
   return data;
 };
 
-export const checkMemberExists = async (payload: MemberExistsPayload) => {
+export const checkUserExists = async (payload: UserExistsPayload) => {
   const { data } = await apiClient.post<{ exists: boolean }>("/members/exists", payload);
   return data.exists;
 };
 
 export const fetchMemberSocieties = async () => {
-  const { data } = await apiClient.get<{ societies: SocietySummary[] }>(
+  const { data } = await apiClient.get<{ memberships: MembershipSummary[] }>(
     "/societies/member-societies",
   );
-  return data.societies;
+  return data.memberships;
 };
 
 export const resolveSelectedSociety = async (societyId: string) => {
   const { data } = await apiClient.post<ResolveSocietyResponse>(
     "/societies/member-societies/resolve",
-    {
-      societyId,
-    },
+    { societyId },
   );
   return data;
 };
@@ -87,28 +89,95 @@ export const createSociety = async (payload: CreateSocietyPayload) => {
       id: string;
       name: string;
       subDomainName: string;
-      status: "CREATED" | "PERMIT_PENDING" | "RAZORPAY_PENDING" | "ACTIVE";
+      status: "CREATED" | "RAZORPAY_PENDING" | "ACTIVE";
     };
     membership: {
       id: string;
-      role: string;
+      roleId: string;
+      status: "active" | "suspended";
+      role: { id: string; name: string; permissions: string[] };
     };
   }>("/societies", payload);
-
   return data;
 };
 
 export const setupPermitRules = async (societyId: string) => {
   const { data } = await apiClient.post<{
     societyId: string;
-    status: "CREATED" | "PERMIT_PENDING" | "RAZORPAY_PENDING" | "ACTIVE";
+    status: "CREATED" | "RAZORPAY_PENDING" | "ACTIVE";
     nextRoute: string;
   }>("/societies/permit/setup", { societyId });
   return data;
 };
 
+export const setupSubscription = async (societyId: string) => {
+  const { data } = await apiClient.post<{
+    keyId: string;
+    razorpaySubscriptionId: string;
+    razorpayCustomerId: string;
+    status: string;
+  }>("/societies/subscription/setup", { societyId });
+  return data;
+};
+
+export const createSetupFeeLink = async (societyId: string) => {
+  const { data } = await apiClient.post<{
+    setupFeeWaived: boolean;
+    setupFeePaid: boolean;
+    paymentLinkUrl: string | null;
+    paymentLinkId?: string;
+    amount: string;
+    currency: string;
+  }>("/societies/setup-fee/link", { societyId });
+  return data;
+};
+
+export const fetchSocietyBillingOverview = async (societyId: string) => {
+  const { data } = await apiClient.get<{
+    society: { id: string; name: string };
+    trial: { endAt: string | null; daysRemaining: number | null; isActive: boolean };
+    setupFee: {
+      enabled: boolean;
+      amount: string;
+      paid: boolean;
+      paidAt: string | null;
+      dueAt: string | null;
+      paymentId: string | null;
+      paymentLinkUrl: string | null;
+      waived: boolean;
+    };
+    override: { enabled: boolean };
+    subscription: {
+      status: string;
+      mandateStatus: string;
+      isInGrace: boolean;
+      graceEndDate: string | null;
+      nextBillingAt: string;
+      previousBillingAt: string | null;
+      razorpaySubId: string;
+    } | null;
+    transactions: Array<{
+      id: string;
+      amount: string;
+      status: string;
+      isPaid: boolean;
+      billingDate: string;
+      paymentDate: string | null;
+      paymentMethod: string | null;
+      paymentCycleCount: number;
+      razorpayPaymentId: string | null;
+    }>;
+  }>(`/societies/billing/${societyId}`);
+  return data;
+};
+
 export const refreshSession = async () => {
-  const { data } = await apiClient.post<AuthResponse>("/members/refresh", {});
+  const { data } = await apiClient.post<RefreshSessionResponse>("/members/refresh", {});
+  return data;
+};
+
+export const fetchSession = async () => {
+  const { data } = await apiClient.get<AuthResponse>("/members/session");
   return data;
 };
 

@@ -1,11 +1,13 @@
 import * as React from "react";
 import {
   IconChartBar,
+  IconCreditCard,
   IconDashboard,
   IconHelp,
   IconInnerShadowTop,
   IconSearch,
   IconSettings,
+  IconShield,
   IconUsers,
 } from "@tabler/icons-react";
 
@@ -22,65 +24,45 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Link } from "react-router";
+import { useAuthSessionStore } from "@/store/authSessionStore";
+import { hasPermission } from "@/components/Can";
 
-const data = {
-  user: {
-    name: "Sameer",
-    email: "sameer@shridhan.in",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/",
-      icon: IconDashboard,
-    },
-    {
-      title: "Team",
-      url: "/teams",
-      icon: IconUsers,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar,
-    },
-    {
-      title: "Permissions",
-      url: "/settings/permissions",
-      icon: IconSettings,
-    },
-    {
-      title: "Roles",
-      url: "/settings/roles",
-      icon: IconSettings,
-    },
-    {
-      title: "Member Roles",
-      url: "/settings/member-roles",
-      icon: IconUsers,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
-};
+const navSecondary = [
+  { title: "Settings", url: "#", icon: IconSettings },
+  { title: "Get Help", url: "#", icon: IconHelp },
+  { title: "Search", url: "#", icon: IconSearch },
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const user = useAuthSessionStore((s) => s.user);
+  const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions);
+
+  const navMain = React.useMemo(() => {
+    const items = [
+      { title: "Dashboard", url: "/", icon: IconDashboard },
+    ];
+
+    if (hasPermission(permissions, "membership.list")) {
+      items.push({ title: "Members", url: "/members", icon: IconUsers });
+    }
+
+    items.push({ title: "Analytics", url: "#", icon: IconChartBar });
+
+    if (hasPermission(permissions, "role.read")) {
+      items.push({ title: "Role Settings", url: "/role-settings", icon: IconShield });
+    }
+
+    items.push({ title: "Billing", url: "/billing", icon: IconCreditCard });
+
+    return items;
+  }, [permissions]);
+
+  const userData = {
+    name: user?.name ?? "User",
+    email: user?.email ?? user?.phone ?? "",
+    avatar: user?.avatar ?? "",
+  };
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -96,11 +78,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navMain} />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   );

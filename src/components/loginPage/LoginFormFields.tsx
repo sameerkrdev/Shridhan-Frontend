@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/input-otp";
 import { useNavigate } from "react-router";
 import {
-  useCheckMemberExistsMutation,
+  useCheckUserExistsMutation,
   useLoginMutation,
   useSendLoginOtpMutation,
   useVerifyLoginOtpMutation,
@@ -40,7 +40,7 @@ export function LoginFormFields() {
   const [step, setStep] = React.useState<"login" | "otp">("login");
   const [phone, setPhone] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
-  const checkMemberExistsMutation = useCheckMemberExistsMutation();
+  const checkMemberExistsMutation = useCheckUserExistsMutation();
   const loginMutation = useLoginMutation();
   const sendLoginOtpMutation = useSendLoginOtpMutation();
   const verifyLoginOtpMutation = useVerifyLoginOtpMutation();
