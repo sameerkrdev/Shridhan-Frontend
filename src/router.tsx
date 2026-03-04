@@ -3,52 +3,50 @@ import RootLayout from "@/layouts/RootLayout";
 import AuthorizedLayout from "@/layouts/AuthorizedLayout";
 import UnauthorizedLayout from "@/layouts/UnauthorizedLayout";
 import DashboardPage from "@/pages/DashboardPage";
-import TeamsPage from "@/pages/TeamsPage";
+import MembersPage from "@/pages/MembersPage";
+import RoleSettingsPage from "@/pages/RoleSettingsPage";
+import UserProfilePage from "@/pages/UserProfilePage";
 import LoginPage from "@/pages/LoginPage";
 import IndexPage from "@/pages/IndexPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import SignupPage from "@/pages/SignupPage";
+import MemberFlowLayout from "@/layouts/MemberFlowLayout";
+import SocietySelectorPage from "@/pages/SocietySelectorPage";
+import RazorpayPendingPage from "@/pages/RazorpayPendingPage";
+import SubscriptionStatusPage from "@/pages/SubscriptionStatusPage";
+import FixedDepositsPage from "@/pages/FixedDepositsPage";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <RootLayout />,
     children: [
-      // Protected (authenticated) routes
       {
         element: <AuthorizedLayout />,
         children: [
-          {
-            path: "",
-            element: <DashboardPage />,
-          },
-          {
-            path: "teams",
-            element: <TeamsPage />,
-          },
+          { path: "", element: <DashboardPage /> },
+          { path: "members", element: <MembersPage /> },
+          { path: "role-settings", element: <RoleSettingsPage /> },
+          { path: "profile", element: <UserProfilePage /> },
+          { path: "billing", element: <SubscriptionStatusPage /> },
+          { path: "fixed-deposits", element: <FixedDepositsPage /> },
+          { path: "dashboard/fixed-deposits", element: <FixedDepositsPage /> },
         ],
       },
-
-      // Public (unauthenticated) routes
+      {
+        element: <MemberFlowLayout />,
+        children: [
+          { path: "society-selector", element: <SocietySelectorPage /> },
+          { path: "onboarding", element: <OnboardingPage /> },
+          { path: "onboarding/razorpay", element: <RazorpayPendingPage /> },
+        ],
+      },
       {
         element: <UnauthorizedLayout />,
         children: [
-          {
-            path: "login",
-            element: <LoginPage />,
-          },
-          {
-            path: "register",
-            element: <SignupPage />,
-          },
-          {
-            path: "onboarding",
-            element: <OnboardingPage />,
-          },
-          {
-            path: "index", // Todo: For now, we are adding path /index to show the index but when authentication is ready then routing will be based on it.
-            element: <IndexPage />,
-          },
+          { path: "login", element: <LoginPage /> },
+          { path: "register", element: <SignupPage /> },
+          { path: "index", element: <IndexPage /> },
         ],
       },
     ],

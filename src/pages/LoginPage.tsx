@@ -2,6 +2,7 @@ import { LoginFormFields } from "@/components/loginPage/LoginFormFields";
 import { FieldDescription } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { GalleryVerticalEnd } from "lucide-react";
+import { Link } from "react-router";
 
 const LoginPage = ({ className, ...props }: React.ComponentProps<"div">) => {
   return (
@@ -19,7 +20,7 @@ const LoginPage = ({ className, ...props }: React.ComponentProps<"div">) => {
 
             <h1 className="text-xl font-bold">Welcome to Shridhan</h1>
             <FieldDescription>
-              Don&apos;t have an account? <a href="#">Sign up</a>
+              Don&apos;t have an account? <Link to="/register">Sign up</Link>
             </FieldDescription>
           </div>
 

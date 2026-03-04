@@ -3,12 +3,11 @@ import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { Field, FieldLabel, FieldGroup, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
-
 import {
   InputOTP,
   InputOTPGroup,
@@ -16,49 +15,42 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useNavigate } from "react-router";
+import {
+  useCheckUserExistsMutation,
+  useLoginMutation,
+  useSendLoginOtpMutation,
+  useVerifyLoginOtpMutation,
+} from "@/hooks/useAuthApi";
+import { useAuthSessionStore } from "@/store/authSessionStore";
+import { getApiErrorMessage } from "@/lib/apiError";
 
 // -------------------- VALIDATION SCHEMAS --------------------
 const phoneSchema = z.object({
   phone: z.string().min(10, "Enter valid phone number").max(10, "Enter 10 digits"),
-  society: z.string().min(1, "Select your society"),
 });
 
 const otpSchema = z.object({
   otp: z.string().min(6, "OTP must be 6 digits"),
 });
 
-// -------------------- SOCIETY LIST --------------------
-const societyList = [
-  { value: "maharashtra-credit-cooperative", label: "Maharashtra Credit Cooperative Society" },
-  { value: "sahakar-mitra-credit", label: "Sahakar Mitra Credit Society" },
-  { value: "janseva-multistate-credit", label: "Janseva Multistate Credit Society" },
-  { value: "bharat-bhushan-nagrik-credit", label: "Bharat Bhushan Nagrik Sahkari Credit Society" },
-  { value: "pragati-credit-society", label: "Pragati Credit Cooperative Society" },
-  { value: "navjeevan-seva-samiti", label: "Navjeevan Seva Samiti" },
-  { value: "gramseva-service-society", label: "Gramseva Service Society" },
-  { value: "lokhit-seva-sanstha", label: "Lokhit Seva Sanstha" },
-  { value: "samaj-kalyan-seva", label: "Samaj Kalyan Seva Society" },
-  { value: "sarvodaya-seva-sangh", label: "Sarvodaya Seva Sangh" },
-];
-
 // -------------------- MAIN COMPONENT --------------------
 export function LoginFormFields() {
   const navigate = useNavigate();
+  const setAuthPayload = useAuthSessionStore((state) => state.setAuthPayload);
   const [step, setStep] = React.useState<"login" | "otp">("login");
   const [phone, setPhone] = React.useState("");
+  const [formError, setFormError] = React.useState<string | null>(null);
+  const checkMemberExistsMutation = useCheckUserExistsMutation();
+  const loginMutation = useLoginMutation();
+  const sendLoginOtpMutation = useSendLoginOtpMutation();
+  const verifyLoginOtpMutation = useVerifyLoginOtpMutation();
 
   // Step 1: Phone + society form
   const loginForm = useForm<z.infer<typeof phoneSchema>>({
     resolver: zodResolver(phoneSchema),
     defaultValues: {
       phone: "",
-      society: "",
     },
-  });
-
-  const societyValue = useWatch({
-    control: loginForm.control,
-    name: "society",
   });
 
   // Step 2: OTP Form
@@ -66,43 +58,84 @@ export function LoginFormFields() {
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: "" },
   });
-
-  async function searchSocieties(query: string) {
-    if (!query) return societyList;
-    return societyList.filter((x) => x.label.toLowerCase().includes(query.toLowerCase()));
-  }
+  const otpValue = useWatch({
+    control: otpForm.control,
+    name: "otp",
+  });
 
   // -------------------- SEND OTP --------------------
-  function sendOtp(values: z.infer<typeof phoneSchema>) {
+  async function sendOtp(values: z.infer<typeof phoneSchema>) {
     setPhone(values.phone);
+    setFormError(null);
+    try {
+      const exists = await checkMemberExistsMutation.mutateAsync({ phone: values.phone });
+      if (!exists) {
+        const message = "Phone number is not registered";
+        setFormError(message);
+        toast.error(message);
+        return;
+      }
 
-    toast.success("OTP Sent", {
-      description: `A 6-digit verification code was sent to ${values.phone}.`,
-    });
-
-    setStep("otp");
+      await sendLoginOtpMutation.mutateAsync({ phone: values.phone });
+      toast.success("OTP Sent", {
+        description: `A 6-digit verification code was sent to ${values.phone}.`,
+      });
+      setStep("otp");
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Unable to send OTP");
+      setFormError(message);
+      toast.error(message);
+    }
   }
 
   // -------------------- VERIFY OTP --------------------
-  function verifyOtp(values: z.infer<typeof otpSchema>) {
-    toast.success("OTP Verified", {
-      description: "Welcome back to Shridhan!",
-    });
+  async function verifyOtp(values: z.infer<typeof otpSchema>) {
+    setFormError(null);
+    try {
+      await verifyLoginOtpMutation.mutateAsync({ phone, otp: values.otp });
+      const payload = await loginMutation.mutateAsync({ phone });
+      setAuthPayload(payload);
 
-    console.log("Logged in:", { phone, societyValue, otp: values.otp });
-    navigate("/");
+      toast.success("OTP Verified", {
+        description: "Welcome back to Shridhan!",
+      });
+
+      console.log("Logged in:", { phone, otp: values.otp });
+      navigate("/society-selector");
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Unable to verify OTP");
+      setFormError(message);
+      toast.error(message);
+    }
+  }
+
+  async function resendOtp() {
+    setFormError(null);
+    try {
+      await sendLoginOtpMutation.mutateAsync({ phone });
+      toast("OTP Resent", {
+        description: `A new code has been sent to ${phone}`,
+      });
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Unable to resend OTP");
+      setFormError(message);
+      toast.error(message);
+    }
   }
 
   // ===================================================================
-  // STEP 1 — PHONE + SOCIETY
+  // STEP 1 — PHONE
   // ===================================================================
   if (step === "login")
     return (
       <form onSubmit={loginForm.handleSubmit(sendOtp)}>
         <FieldGroup className="gap-2">
+          {formError && <p className="text-red-500 text-sm">{formError}</p>}
           {/* PHONE */}
           <Field>
-            <FieldLabel htmlFor="phone">Phone Number</FieldLabel>
+            <FieldLabel htmlFor="phone">
+              Phone Number <span className="text-red-500">*</span>
+            </FieldLabel>
             <Input
               id="phone"
               placeholder="Enter your Phone Number"
@@ -111,21 +144,29 @@ export function LoginFormFields() {
             <p className="text-red-500 text-sm">{loginForm.formState.errors.phone?.message}</p>
           </Field>
 
-          {/* SOCIETY SELECT */}
-          <Field>
-            <FieldLabel>Society</FieldLabel>
-            <SearchableSingleSelectAsync
-              value={societyValue}
-              onChange={(v) => loginForm.setValue("society", v)}
-              onSearch={searchSocieties}
-              placeholder="Select your society"
-            />
-            <p className="text-red-500 text-sm">{loginForm.formState.errors.society?.message}</p>
-          </Field>
-
           {/* SEND OTP */}
-          <Button type="submit" className="w-full">
-            Send OTP
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={
+              loginMutation.isPending ||
+              sendLoginOtpMutation.isPending ||
+              checkMemberExistsMutation.isPending
+            }
+          >
+            {checkMemberExistsMutation.isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Checking...
+              </span>
+            ) : sendLoginOtpMutation.isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Sending OTP...
+              </span>
+            ) : (
+              "Send OTP"
+            )}
           </Button>
         </FieldGroup>
       </form>
@@ -137,6 +178,7 @@ export function LoginFormFields() {
   return (
     <form onSubmit={otpForm.handleSubmit(verifyOtp)}>
       <FieldGroup>
+        {formError && <p className="text-red-500 text-sm text-center">{formError}</p>}
         <div className="flex flex-col items-center justify-center">
           <FieldDescription>
             A 6-digit code has been sent to <span className="font-semibold"> {phone}</span>
@@ -146,7 +188,12 @@ export function LoginFormFields() {
         <Field>
           {/* <FieldLabel htmlFor="phone">One-Time Password</FieldLabel> */}
           <div className="flex flex-col gap-2 items-center justify-center">
-            <InputOTP maxLength={6} {...otpForm.register("otp")} containerClassName="gap-4">
+            <InputOTP
+              maxLength={6}
+              value={otpValue}
+              onChange={(value) => otpForm.setValue("otp", value)}
+              containerClassName="gap-4"
+            >
               <InputOTPGroup className="gap-2.5">
                 <InputOTPSlot index={0} />
                 <InputOTPSlot index={1} />
@@ -163,25 +210,36 @@ export function LoginFormFields() {
             </InputOTP>
             <p className="text-red-500 text-sm">{otpForm.formState.errors.otp?.message}</p>
           </div>
+          <FieldDescription className="text-center text-xs">
+            OTP <span className="text-red-500">*</span>
+          </FieldDescription>
 
           <FieldDescription className="text-center">
             Didn’t receive it?{" "}
             <button
               type="button"
               className="underline"
-              onClick={() =>
-                toast("OTP Resent", {
-                  description: `A new code has been sent to ${phone}`,
-                })
-              }
+              onClick={() => void resendOtp()}
+              disabled={sendLoginOtpMutation.isPending}
             >
-              Resend
+              {sendLoginOtpMutation.isPending ? "Resending..." : "Resend"}
             </button>
           </FieldDescription>
         </Field>
 
-        <Button type="submit" className="w-full">
-          Verify
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={verifyLoginOtpMutation.isPending || loginMutation.isPending}
+        >
+          {verifyLoginOtpMutation.isPending || loginMutation.isPending ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              Verifying...
+            </span>
+          ) : (
+            "Verify"
+          )}
         </Button>
       </FieldGroup>
     </form>

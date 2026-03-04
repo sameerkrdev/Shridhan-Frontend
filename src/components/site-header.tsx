@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Link, useLocation } from "react-router";
@@ -10,7 +11,7 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
 
-export function SiteHeader() {
+export function SiteHeader({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
 
   // Split path into segments (e.g. "/components/button" → ["components", "button"])
@@ -58,14 +59,7 @@ export function SiteHeader() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {/* RIGHT SECTION (optional) */}
-        {/* <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-            <a target="_blank" rel="noopener noreferrer" href="https://github.com/...">
-              GitHub
-            </a>
-          </Button>
-        </div> */}
+        {children && <div className="ml-auto flex items-center gap-2">{children}</div>}
       </div>
     </header>
   );

@@ -1,0 +1,222 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useFdDetailQuery } from "@/hooks/useFixedDepositApi";
+import { formatDate } from "@/lib/dateFormat";
+import { AddTransactionDialog } from "@/dialogs/AddTransactionDialog";
+
+interface FdDetailDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  societyId: string;
+  fixedDepositId: string | null;
+}
+
+const formatCurrency = (value: string | number) => {
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "Rs. 0.00";
+  return `Rs. ${amount.toFixed(2)}`;
+};
+
+const InfoItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="space-y-1">
+    <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+    <p className="text-sm font-medium wrap-break-word">{value}</p>
+  </div>
+);
+
+export const FdDetailDialog = ({
+  open,
+  onOpenChange,
+  societyId,
+  fixedDepositId,
+}: FdDetailDialogProps) => {
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const { data, isLoading } = useFdDetailQuery(societyId, fixedDepositId, open);
+
+  const totalCredit = (data?.transactions ?? [])
+    .filter((transaction) => transaction.type === "CREDIT")
+    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+  const totalPayout = (data?.transactions ?? [])
+    .filter((transaction) => transaction.type === "PAYOUT")
+    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+  const principalAmount = Number(data?.principalAmount ?? 0);
+  const maturityAmount = Number(data?.maturityAmount ?? 0);
+  const pendingCredit = Math.max(0, principalAmount - totalCredit);
+  const pendingPayout = Math.max(0, maturityAmount - totalPayout);
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[1040px]">
+          <DialogHeader>
+            <DialogTitle>FD Account Details</DialogTitle>
+            <DialogDescription>
+              Customer, nominee, plan details, and transaction history.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading details...</p>
+          ) : !data ? (
+            <p className="text-sm text-muted-foreground">No data found.</p>
+          ) : (
+            <div className="space-y-6">
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">FD Account</p>
+                    <p className="font-semibold">{data.id}</p>
+                  </div>
+                  <Badge variant={data.status === "ACTIVE" ? "default" : "secondary"}>{data.status}</Badge>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                  <InfoItem label="Project Type" value={data.projectType.name} />
+                  <InfoItem label="Deposit Amount" value={formatCurrency(data.principalAmount)} />
+                  <InfoItem label="Maturity Amount" value={formatCurrency(data.maturityAmount)} />
+                  <InfoItem label="Maturity Date" value={formatDate(data.maturityDate)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border p-4 space-y-4">
+                  <h3 className="font-semibold">Customer Details</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoItem label="Name" value={data.customer.fullName} />
+                    <InfoItem label="Phone" value={data.customer.phone} />
+                    <InfoItem label="Email" value={data.customer.email ?? "N/A"} />
+                    <InfoItem label="Aadhaar" value={data.customer.aadhaar ?? "N/A"} />
+                    <InfoItem label="PAN" value={data.customer.pan ?? "N/A"} />
+                    <InfoItem label="Address" value={data.customer.address ?? "N/A"} />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4 space-y-4">
+                  <h3 className="font-semibold">Financial Summary</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoItem label="Total Credit Collected" value={formatCurrency(totalCredit)} />
+                    <InfoItem label="Pending Credit" value={formatCurrency(pendingCredit)} />
+                    <InfoItem label="Total Payout Done" value={formatCurrency(totalPayout)} />
+                    <InfoItem label="Pending Payout" value={formatCurrency(pendingPayout)} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold">Nominees</h3>
+                {data.customer.nominees.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No nominees added.</p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {data.customer.nominees.map((nominee) => (
+                      <div key={nominee.id} className="rounded-lg border p-3">
+                        <p className="font-medium">{nominee.name}</p>
+                        <div className="mt-2 grid gap-2 grid-cols-2 text-sm">
+                          <p className="text-muted-foreground">Phone</p>
+                          <p>{nominee.phone}</p>
+                          <p className="text-muted-foreground">Relation</p>
+                          <p>{nominee.relation ?? "N/A"}</p>
+                          <p className="text-muted-foreground">Aadhaar</p>
+                          <p>{nominee.aadhaar ?? "N/A"}</p>
+                          <p className="text-muted-foreground">PAN</p>
+                          <p>{nominee.pan ?? "N/A"}</p>
+                          <p className="text-muted-foreground">Address</p>
+                          <p>{nominee.address ?? "N/A"}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold">Documents</h3>
+                {data.documents?.length ? (
+                  <div className="space-y-2">
+                    {data.documents.map((document) => (
+                      <div key={document.id} className="rounded-md border p-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{document.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{document.fileName}</p>
+                        </div>
+                        <a
+                          href={document.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-primary underline underline-offset-4"
+                        >
+                          Open
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Transactions</h3>
+                  <Button type="button" onClick={() => setIsAddTransactionOpen(true)}>
+                    Add Transaction
+                  </Button>
+                </div>
+
+                <div className="rounded-md border overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Transaction ID</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.transactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground">
+                            No transactions found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        data.transactions.map((transaction) => (
+                          <TableRow key={transaction.id}>
+                            <TableCell>{formatDate(transaction.createdAt)}</TableCell>
+                            <TableCell>
+                              <Badge variant={transaction.type === "CREDIT" ? "default" : "secondary"}>
+                                {transaction.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{formatCurrency(transaction.amount)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{transaction.paymentMethod ?? "N/A"}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{transaction.transactionId ?? "N/A"}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {fixedDepositId ? (
+        <AddTransactionDialog
+          open={isAddTransactionOpen}
+          onOpenChange={setIsAddTransactionOpen}
+          societyId={societyId}
+          fixedDepositId={fixedDepositId}
+        />
+      ) : null}
+    </>
+  );
+};

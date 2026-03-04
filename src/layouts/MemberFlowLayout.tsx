@@ -2,7 +2,7 @@ import { Navigate, Outlet } from "react-router";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import FullPageLoader from "@/components/ui/full-page-loader";
 
-const UnauthorizedLayout = () => {
+const MemberFlowLayout = () => {
   const isHydrated = useAuthSessionStore((state) => state.isHydrated);
   const isAuthenticated = useAuthSessionStore((state) => state.isAuthenticated);
 
@@ -10,15 +10,11 @@ const UnauthorizedLayout = () => {
     return <FullPageLoader />;
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/society-selector" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
-  return (
-    <div>
-      <Outlet />
-    </div>
-  );
+  return <Outlet />;
 };
 
-export default UnauthorizedLayout;
+export default MemberFlowLayout;
