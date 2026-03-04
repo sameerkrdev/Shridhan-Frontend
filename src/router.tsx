@@ -14,6 +14,7 @@ import MemberFlowLayout from "@/layouts/MemberFlowLayout";
 import SocietySelectorPage from "@/pages/SocietySelectorPage";
 import RazorpayPendingPage from "@/pages/RazorpayPendingPage";
 import SubscriptionStatusPage from "@/pages/SubscriptionStatusPage";
+import FixedDepositsPage from "@/pages/FixedDepositsPage";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,8 @@ const router = createBrowserRouter([
           { path: "role-settings", element: <RoleSettingsPage /> },
           { path: "profile", element: <UserProfilePage /> },
           { path: "billing", element: <SubscriptionStatusPage /> },
+          { path: "fixed-deposits", element: <FixedDepositsPage /> },
+          { path: "dashboard/fixed-deposits", element: <FixedDepositsPage /> },
         ],
       },
       {

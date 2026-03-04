@@ -89,34 +89,6 @@ const AuthorizedLayout = () => {
 
   return (
     <div>
-      {showTrialBanner ? (
-        <div className="sticky top-0 z-50 border-b bg-amber-50 text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
-          <div className="px-4 py-2 lg:px-6">
-            <div className="flex flex-col gap-2 text-sm md:flex-row md:items-center md:justify-between">
-              <span>
-                Trial ends at{" "}
-                {billingOverview?.trial.endAt
-                  ? formatDate(billingOverview.trial.endAt)
-                  : "N/A"}
-                . Complete subscription mandate setup to avoid permission blocking.
-              </span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => navigate("/billing")}>
-                  Complete Setup
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Dismiss payment reminder"
-                  onClick={() => setDismissedBannerForSocietyId(selectedMembership.societyId)}
-                >
-                  <IconX className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
       <SidebarProvider
         style={
           {
@@ -132,6 +104,36 @@ const AuthorizedLayout = () => {
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
                 <div className="px-4 lg:px-6">
+                  {showTrialBanner ? (
+                    <div className="mb-4 rounded-md border bg-amber-50 text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+                      <div className="px-4 py-2">
+                        <div className="flex flex-col gap-2 text-sm md:flex-row md:items-center md:justify-between">
+                          <span>
+                            Trial ends at{" "}
+                            {billingOverview?.trial.endAt
+                              ? formatDate(billingOverview.trial.endAt)
+                              : "N/A"}
+                            . Complete subscription mandate setup to avoid permission blocking.
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" onClick={() => navigate("/billing")}>
+                              Complete Setup
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label="Dismiss payment reminder"
+                              onClick={() =>
+                                setDismissedBannerForSocietyId(selectedMembership.societyId)
+                              }
+                            >
+                              <IconX className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <Outlet />
                 </div>
               </div>

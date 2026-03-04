@@ -24,8 +24,11 @@ interface SearchableSingleSelectAsyncProps {
   value?: string;
   onChange: (value: string) => void;
 
-  /** Called whenever user types (debounced) */
-  onSearch: (query: string) => Promise<Option[]>;
+  /** Static options mode */
+  options?: Option[];
+
+  /** Async mode: called whenever user types (debounced) */
+  onSearch?: (query: string) => Promise<Option[]>;
 
   /** Placeholder text */
   placeholder?: string;
@@ -34,13 +37,12 @@ interface SearchableSingleSelectAsyncProps {
   debounce?: number;
 
   className?: string;
-
-  optionsProps?: Option[];
 }
 
 export function SearchableSingleSelectAsync({
   value,
   onChange,
+  options = [],
   onSearch,
   placeholder = "Search...",
   debounce = 400,
@@ -48,24 +50,33 @@ export function SearchableSingleSelectAsync({
 }: SearchableSingleSelectAsyncProps) {
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [options, setOptions] = React.useState<Option[]>([]);
+  const [displayOptions, setDisplayOptions] = React.useState<Option[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  const selected = options.find((o) => o.value === value);
+  const selected = displayOptions.find((o) => o.value === value);
 
-  /** Debounce logic */
+  /** Debounce async logic */
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !onSearch) return;
 
     const handler = setTimeout(async () => {
       setLoading(true);
       const results = await onSearch(searchTerm);
-      setOptions(results);
+      setDisplayOptions(results);
       setLoading(false);
     }, debounce);
 
     return () => clearTimeout(handler);
   }, [searchTerm, onSearch, open, debounce]);
+
+  React.useEffect(() => {
+    if (onSearch) return;
+    const query = searchTerm.trim().toLowerCase();
+    const nextOptions = query
+      ? options.filter((option) => option.label.toLowerCase().includes(query))
+      : options;
+    setDisplayOptions(nextOptions);
+  }, [onSearch, options, searchTerm]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -80,7 +91,7 @@ export function SearchableSingleSelectAsync({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Search..." onValueChange={setSearchTerm} />
 
@@ -94,7 +105,7 @@ export function SearchableSingleSelectAsync({
                 <CommandEmpty>No results found.</CommandEmpty>
 
                 <CommandGroup>
-                  {options.map((opt) => (
+                  {displayOptions.map((opt) => (
                     <CommandItem
                       key={opt.value}
                       value={opt.label}
