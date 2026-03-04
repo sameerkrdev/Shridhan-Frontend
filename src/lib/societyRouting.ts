@@ -1,8 +1,8 @@
 import type { SocietyStatus } from "@/types/auth";
 
 const routeByStatus: Record<SocietyStatus, string> = {
-  CREATED: "/onboarding/permit",
-  RAZORPAY_PENDING: "/onboarding/razorpay",
+  CREATED: "/",
+  RAZORPAY_PENDING: "/",
   ACTIVE: "/",
 };
 

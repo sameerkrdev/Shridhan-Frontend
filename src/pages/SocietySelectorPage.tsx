@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import {
   useMemberSocietiesQuery,
   useResolveSelectedSocietyMutation,
+  useSocietyBillingOverviewQuery,
 } from "@/hooks/useAuthApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { formatDate } from "@/lib/dateFormat";
 
 const toReadableLabel = (value: string) =>
   value
@@ -25,6 +27,54 @@ const getStatusVariant = (status: string): "default" | "secondary" | "outline" |
   if (normalizedStatus.includes("FAILED") || normalizedStatus.includes("CANCELLED")) return "destructive";
   if (normalizedStatus.includes("PENDING") || normalizedStatus === "CREATED") return "secondary";
   return "outline";
+};
+
+const getSocietyStatusLabel = (status: string) => {
+  const normalizedStatus = status.toUpperCase();
+  if (normalizedStatus === "ACTIVE") return "Access Active";
+  if (normalizedStatus === "RAZORPAY_PENDING") return "Trial Active (Mandate Pending)";
+  if (normalizedStatus === "CREATED") return "Trial Started";
+  return toReadableLabel(status);
+};
+
+const getMembershipStatusVariant = (
+  status: string,
+): "default" | "secondary" | "outline" | "destructive" => {
+  return status.toLowerCase() === "suspended" ? "destructive" : "outline";
+};
+
+const SocietyCardBillingStatus = ({ societyId }: { societyId: string }) => {
+  const { data } = useSocietyBillingOverviewQuery(societyId, true);
+
+  if (!data) {
+    return (
+      <Badge variant="outline" className="text-xs">
+        Billing: Loading...
+      </Badge>
+    );
+  }
+
+  if (data.override.enabled) {
+    return <Badge variant="outline">Billing: Override Active</Badge>;
+  }
+
+  if (data.trial.isActive) {
+    return (
+      <Badge variant="secondary">
+        Trial Active - Ends {data.trial.endAt ? formatDate(data.trial.endAt) : "N/A"}
+      </Badge>
+    );
+  }
+
+  if (data.subscription?.status === "ACTIVE") {
+    return (
+      <Badge variant="default">
+        Next Billing: {data.subscription.nextBillingAt ? formatDate(data.subscription.nextBillingAt) : "N/A"}
+      </Badge>
+    );
+  }
+
+  return <Badge variant="destructive">Billing: Action Required</Badge>;
 };
 
 const SocietySelectorPage = () => {
@@ -108,8 +158,12 @@ const SocietySelectorPage = () => {
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
                   <Badge variant={getStatusVariant(m.societyStatus)}>
-                    Status: {toReadableLabel(m.societyStatus)}
+                    Society: {getSocietyStatusLabel(m.societyStatus)}
                   </Badge>
+                  <Badge variant={getMembershipStatusVariant(m.status)}>
+                    Membership: {toReadableLabel(m.status)}
+                  </Badge>
+                  <SocietyCardBillingStatus societyId={m.societyId} />
                   <Badge variant="outline">Access: {toReadableLabel(m.role)}</Badge>
                 </div>
               </CardContent>

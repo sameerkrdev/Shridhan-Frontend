@@ -150,7 +150,7 @@ const OnboardingForm = () => {
                 Creating Society...
               </span>
             ) : (
-              "Next → Proceed to Payment"
+              "Create Society"
             )}
           </Button>
         </FieldGroup>

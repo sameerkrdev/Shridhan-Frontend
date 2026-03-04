@@ -97,16 +97,14 @@ export const createSociety = async (payload: CreateSocietyPayload) => {
       status: "active" | "suspended";
       role: { id: string; name: string; permissions: string[] };
     };
+    mandateSetup: {
+      keyId: string;
+      razorpaySubscriptionId: string;
+      razorpayCustomerId: string;
+      status: string;
+      razorpaySubscriptionShortUrl: string | null;
+    } | null;
   }>("/societies", payload);
-  return data;
-};
-
-export const setupPermitRules = async (societyId: string) => {
-  const { data } = await apiClient.post<{
-    societyId: string;
-    status: "CREATED" | "RAZORPAY_PENDING" | "ACTIVE";
-    nextRoute: string;
-  }>("/societies/permit/setup", { societyId });
   return data;
 };
 
@@ -116,19 +114,18 @@ export const setupSubscription = async (societyId: string) => {
     razorpaySubscriptionId: string;
     razorpayCustomerId: string;
     status: string;
+    razorpaySubscriptionShortUrl: string | null;
   }>("/societies/subscription/setup", { societyId });
   return data;
 };
 
-export const createSetupFeeLink = async (societyId: string) => {
+export const cancelSubscription = async (societyId: string, refundLatestPayment: boolean = true) => {
   const { data } = await apiClient.post<{
-    setupFeeWaived: boolean;
-    setupFeePaid: boolean;
-    paymentLinkUrl: string | null;
-    paymentLinkId?: string;
-    amount: string;
-    currency: string;
-  }>("/societies/setup-fee/link", { societyId });
+    cancelled: boolean;
+    refunded: boolean;
+    refundId: string | null;
+    refundedPaymentId: string | null;
+  }>("/societies/subscription/cancel", { societyId, refundLatestPayment });
   return data;
 };
 
@@ -143,7 +140,6 @@ export const fetchSocietyBillingOverview = async (societyId: string) => {
       paidAt: string | null;
       dueAt: string | null;
       paymentId: string | null;
-      paymentLinkUrl: string | null;
       waived: boolean;
     };
     override: { enabled: boolean };

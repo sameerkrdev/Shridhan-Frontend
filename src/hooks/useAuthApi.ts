@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  cancelSubscription,
   checkUserExists,
-  createSetupFeeLink,
   createSociety,
   fetchSocietyBillingOverview,
   fetchMemberSocieties,
@@ -12,7 +12,6 @@ import {
   sendLoginOtp,
   sendSignupEmailOtp,
   sendSignupPhoneOtp,
-  setupPermitRules,
   setupSubscription,
   signupUser,
   verifyLoginOtp,
@@ -52,16 +51,15 @@ export const useRefreshSessionMutation = () => {
   return useMutation({ mutationFn: refreshSession });
 };
 
-export const useSetupPermitRulesMutation = () => {
-  return useMutation({ mutationFn: setupPermitRules });
-};
-
 export const useSetupSubscriptionMutation = () => {
   return useMutation({ mutationFn: setupSubscription });
 };
 
-export const useCreateSetupFeeLinkMutation = () => {
-  return useMutation({ mutationFn: createSetupFeeLink });
+export const useCancelSubscriptionMutation = () => {
+  return useMutation({
+    mutationFn: ({ societyId, refundLatestPayment }: { societyId: string; refundLatestPayment?: boolean }) =>
+      cancelSubscription(societyId, refundLatestPayment ?? true),
+  });
 };
 
 export const useSocietyBillingOverviewQuery = (societyId: string | null, enabled: boolean) => {

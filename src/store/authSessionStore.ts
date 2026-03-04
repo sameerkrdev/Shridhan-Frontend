@@ -35,6 +35,18 @@ const initialState = {
   isHydrated: false,
 };
 
+const upsertMembership = (
+  memberships: MembershipSummary[],
+  membership: MembershipSummary,
+): MembershipSummary[] => {
+  const existingIndex = memberships.findIndex((m) => m.societyId === membership.societyId);
+  if (existingIndex === -1) {
+    return [...memberships, membership];
+  }
+
+  return memberships.map((m, index) => (index === existingIndex ? membership : m));
+};
+
 export const useAuthSessionStore = create<AuthSessionState>()(
   persist(
     (set, get) => ({
@@ -57,7 +69,11 @@ export const useAuthSessionStore = create<AuthSessionState>()(
           };
         }),
       setMemberships: (memberships) => set({ memberships }),
-      setSelectedMembership: (membership) => set({ selectedMembership: membership }),
+      setSelectedMembership: (membership) =>
+        set((state) => ({
+          selectedMembership: membership,
+          memberships: upsertMembership(state.memberships, membership),
+        })),
       setResolvedSociety: (resolved) => {
         const matched = get().memberships.find((m) => m.societyId === resolved.societyId);
         const selectedMembership: MembershipSummary = matched ?? {
@@ -72,7 +88,10 @@ export const useAuthSessionStore = create<AuthSessionState>()(
           societyStatus: resolved.societyStatus,
         };
 
-        set({ selectedMembership });
+        set((state) => ({
+          selectedMembership,
+          memberships: upsertMembership(state.memberships, selectedMembership),
+        }));
       },
       setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setHydrated: (isHydrated) => set({ isHydrated }),

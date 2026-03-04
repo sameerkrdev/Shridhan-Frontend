@@ -26,6 +26,14 @@ import {
 import { Link } from "react-router";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { hasPermission } from "@/components/Can";
+import { useResolveSelectedSocietyMutation } from "@/hooks/useAuthApi";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const navSecondary = [
   { title: "Settings", url: "#", icon: IconSettings },
@@ -35,7 +43,20 @@ const navSecondary = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = useAuthSessionStore((s) => s.user);
+  const memberships = useAuthSessionStore((s) => s.memberships);
+  const selectedMembership = useAuthSessionStore((s) => s.selectedMembership);
   const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions);
+  const setResolvedSociety = useAuthSessionStore((s) => s.setResolvedSociety);
+  const resolveMutation = useResolveSelectedSocietyMutation();
+
+  const handleSocietySwitch = async (societyId: string) => {
+    try {
+      const resolved = await resolveMutation.mutateAsync(societyId);
+      setResolvedSociety(resolved);
+    } catch {
+      // Error handled by mutation.
+    }
+  };
 
   const navMain = React.useMemo(() => {
     const items = [
@@ -76,6 +97,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {memberships.length > 1 && selectedMembership ? (
+          <div className="px-2">
+            <Select
+              value={selectedMembership.societyId}
+              onValueChange={handleSocietySwitch}
+              disabled={resolveMutation.isPending}
+            >
+              <SelectTrigger className="h-8 w-full text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {memberships.map((membership) => (
+                  <SelectItem key={membership.societyId} value={membership.societyId}>
+                    {membership.societyName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />

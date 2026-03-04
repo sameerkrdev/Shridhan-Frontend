@@ -34,6 +34,7 @@ import { getApiErrorMessage } from "@/lib/apiError";
 import { useNavigate } from "react-router";
 import type { UserMembershipProfile } from "@/lib/membershipApi";
 import { formatDate } from "@/lib/dateFormat";
+import { userProfileUpdateSchema } from "@/lib/UserProfileZodValidatorSchema";
 
 const UserProfilePage = () => {
   const navigate = useNavigate();
@@ -81,9 +82,18 @@ const UserProfilePage = () => {
 
   const handleSave = async () => {
     try {
+      const validated = userProfileUpdateSchema.safeParse({
+        name: currentName,
+        phone: currentPhone,
+      });
+      if (!validated.success) {
+        toast.error(validated.error.issues[0]?.message ?? "Please check profile details");
+        return;
+      }
+
       const updated = await updateMutation.mutateAsync({
-        ...(currentName !== profile?.name && { name: currentName }),
-        ...(currentPhone !== profile?.phone && { phone: currentPhone }),
+        ...(validated.data.name !== profile?.name && { name: validated.data.name }),
+        ...(validated.data.phone !== profile?.phone && { phone: validated.data.phone }),
       });
 
       if (user) {

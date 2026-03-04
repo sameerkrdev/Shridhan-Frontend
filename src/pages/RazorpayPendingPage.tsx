@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useCreateSetupFeeLinkMutation, useSetupSubscriptionMutation } from "@/hooks/useAuthApi";
+import { useSetupSubscriptionMutation } from "@/hooks/useAuthApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { useLocation } from "react-router";
 
 type RazorpayCheckoutOptions = {
   key: string;
@@ -53,95 +54,92 @@ const ensureRazorpayCheckout = async () => {
 
 const RazorpayPendingPage = () => {
   const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
-  const [setupFeeStepCompleted, setSetupFeeStepCompleted] = useState(false);
-  const createSetupFeeLinkMutation = useCreateSetupFeeLinkMutation();
   const setupSubscriptionMutation = useSetupSubscriptionMutation();
-  const selectedSociety = useAuthSessionStore((state) => state.selectedMembership);
+  const selectedMembership = useAuthSessionStore((state) => state.selectedMembership);
+  const location = useLocation();
+  const hasAutoOpenedRef = useRef(false);
+  const mandateSetupFromState = (location.state as { mandateSetup?: null | {
+    keyId: string;
+    razorpaySubscriptionId: string;
+    razorpayCustomerId: string;
+    status: string;
+    razorpaySubscriptionShortUrl: string | null;
+  } } | null)?.mandateSetup;
 
-  const onPaySetupFee = async () => {
-    if (!selectedSociety?.societyId) {
-      toast.error("No society selected");
-      return;
-    }
-
-    try {
-      const setupFee = await createSetupFeeLinkMutation.mutateAsync(selectedSociety.societyId);
-      if (setupFee.setupFeePaid || setupFee.setupFeeWaived) {
-        setSetupFeeStepCompleted(true);
-        toast.success("Setup fee already satisfied. You can continue.");
+  const openCheckout = useCallback(
+    async (subscriptionSetup?: {
+      keyId: string;
+      razorpaySubscriptionId: string;
+      razorpayCustomerId: string;
+      status: string;
+      razorpaySubscriptionShortUrl: string | null;
+    }) => {
+      if (!selectedMembership?.societyId) {
+        toast.error("No society selected");
         return;
       }
 
-      if (!setupFee.paymentLinkUrl) {
-        throw new Error("Setup fee payment link unavailable");
+      try {
+        setIsOpeningCheckout(true);
+        await ensureRazorpayCheckout();
+
+        const setup =
+          subscriptionSetup ??
+          (await setupSubscriptionMutation.mutateAsync(selectedMembership.societyId));
+
+        if (setup.razorpaySubscriptionShortUrl) {
+          window.open(setup.razorpaySubscriptionShortUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+
+        const RazorpayConstructor = window.Razorpay;
+
+        if (!RazorpayConstructor) {
+          throw new Error("Razorpay SDK unavailable");
+        }
+
+        const checkout = new RazorpayConstructor({
+          key: setup.keyId,
+          subscription_id: setup.razorpaySubscriptionId,
+          name: selectedMembership.societyName,
+          description: "Shridhan subscription mandate setup",
+          notes: {
+            societyId: selectedMembership.societyId,
+            customerId: setup.razorpayCustomerId,
+          },
+        });
+
+        checkout.open();
+        toast.success("Mandate initialized. Subscription activates after webhook confirmation.");
+      } catch (error) {
+        toast.error(getApiErrorMessage(error, "Unable to initialize Razorpay mandate"));
+      } finally {
+        setIsOpeningCheckout(false);
       }
+    },
+    [selectedMembership, setupSubscriptionMutation],
+  );
 
-      window.location.href = setupFee.paymentLinkUrl;
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Unable to create setup fee payment link"));
-    }
-  };
-
-  const onCompleteMandate = async () => {
-    if (!selectedSociety?.societyId) {
-      toast.error("No society selected");
+  useEffect(() => {
+    if (!mandateSetupFromState || hasAutoOpenedRef.current) {
       return;
     }
-
-    try {
-      setIsOpeningCheckout(true);
-      await ensureRazorpayCheckout();
-
-      const subscriptionSetup = await setupSubscriptionMutation.mutateAsync(selectedSociety.societyId);
-      const RazorpayConstructor = window.Razorpay;
-
-      if (!RazorpayConstructor) {
-        throw new Error("Razorpay SDK unavailable");
-      }
-
-      const checkout = new RazorpayConstructor({
-        key: subscriptionSetup.keyId,
-        subscription_id: subscriptionSetup.razorpaySubscriptionId,
-        name: selectedSociety.societyName,
-        description: "Shridhan subscription mandate setup",
-        notes: {
-          societyId: selectedSociety.societyId,
-          customerId: subscriptionSetup.razorpayCustomerId,
-        },
-      });
-
-      checkout.open();
-      toast.success("Mandate initialized. Subscription activates after webhook confirmation.");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Unable to initialize Razorpay mandate"));
-    } finally {
-      setIsOpeningCheckout(false);
-    }
-  };
+    hasAutoOpenedRef.current = true;
+    void openCheckout(mandateSetupFromState);
+  }, [mandateSetupFromState, openCheckout]);
 
   return (
     <div className="min-h-svh flex items-center justify-center px-6">
       <div className="text-center max-w-md">
         <h1 className="text-2xl font-semibold">Razorpay Setup Pending</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Complete setup fee first, then configure UPI Autopay mandate.
+          Configure UPI Autopay mandate to activate subscription billing.
         </p>
         <Button
           type="button"
-          variant="outline"
           className="mt-6 w-full"
-          onClick={onPaySetupFee}
-          disabled={createSetupFeeLinkMutation.isPending}
-        >
-          {createSetupFeeLinkMutation.isPending ? "Preparing payment link..." : "Pay one-time setup fee"}
-        </Button>
-        <Button
-          type="button"
-          className="mt-6 w-full"
-          onClick={onCompleteMandate}
-          disabled={
-            !setupFeeStepCompleted || isOpeningCheckout || setupSubscriptionMutation.isPending
-          }
+          onClick={() => void openCheckout()}
+          disabled={isOpeningCheckout || setupSubscriptionMutation.isPending}
         >
           {isOpeningCheckout || setupSubscriptionMutation.isPending
             ? "Opening Razorpay..."
