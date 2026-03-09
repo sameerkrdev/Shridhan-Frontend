@@ -259,6 +259,14 @@ export const CreateFdAccountDialog = ({
     if (!selectedProjectType) return null;
     return getMaturityDate(startDate, selectedProjectType.duration);
   }, [selectedProjectType, startDate]);
+  const selectedProjectTypeMinimumAmount = useMemo(
+    () => Number(selectedProjectType?.minimumAmount ?? 0),
+    [selectedProjectType],
+  );
+  const maturityGainPreview = useMemo(() => {
+    if (maturityAmountPreview === null || !depositAmount || depositAmount <= 0) return null;
+    return maturityAmountPreview - Number(depositAmount);
+  }, [depositAmount, maturityAmountPreview]);
 
   const onSubmit = async (values: FormData) => {
     try {
@@ -550,72 +558,6 @@ export const CreateFdAccountDialog = ({
                 ) : null}
               </div>
             </div>
-
-            <div className="rounded-md border bg-muted/30 p-3 text-sm">
-              <p>
-                Deposit Amount:{" "}
-                <span className="font-semibold">{depositAmount ? `Rs. ${Number(depositAmount).toFixed(2)}` : "N/A"}</span>
-              </p>
-              <p>
-                Initial Paid:{" "}
-                <span className="font-semibold">
-                  {initialPaymentAmount ? `Rs. ${Number(initialPaymentAmount).toFixed(2)}` : "N/A"}
-                </span>
-              </p>
-              <p>
-                Pending Amount:{" "}
-                <span className="font-semibold">
-                  {depositAmount && initialPaymentAmount
-                    ? `Rs. ${(Number(depositAmount) - Number(initialPaymentAmount)).toFixed(2)}`
-                    : "N/A"}
-                </span>
-              </p>
-              <p>
-                Maturity Amount:{" "}
-                <span className="font-semibold">
-                  {maturityAmountPreview !== null ? `Rs. ${maturityAmountPreview.toFixed(2)}` : "N/A"}
-                </span>
-              </p>
-              <p>
-                Maturity Date:{" "}
-                <span className="font-semibold">
-                  {maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
-            <Input type="file" multiple onChange={handleFilesSelected} />
-            {documents.length > 0 ? (
-              <div className="space-y-2">
-                {documents.map((document, index) => (
-                  <div key={`${document.file.name}-${index}`} className="rounded-md border p-2 space-y-2">
-                    <p className="text-xs text-muted-foreground">Original: {document.file.name}</p>
-                    <div className="flex gap-2">
-                      <Input
-                        value={document.displayName}
-                        onChange={(event) =>
-                          setDocuments((prev) =>
-                            prev.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, displayName: event.target.value } : item,
-                            ),
-                          )
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
           </div>
 
           <div className="space-y-3">
@@ -640,7 +582,7 @@ export const CreateFdAccountDialog = ({
                 </Select>
               </div>
 
-              {(paymentMethod === "UPI" || paymentMethod === "CASH") && (
+              {paymentMethod === "UPI" && (
                 <div className="space-y-2">
                   <Label>Transaction ID</Label>
                   <Input {...register("payment.transactionId")} />
@@ -678,6 +620,63 @@ export const CreateFdAccountDialog = ({
                   </div>
                 </>
               )}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
+            <Input type="file" multiple onChange={handleFilesSelected} />
+            {documents.length > 0 ? (
+              <div className="space-y-2">
+                {documents.map((document, index) => (
+                  <div key={`${document.file.name}-${index}`} className="rounded-md border p-2 space-y-2">
+                    <p className="text-xs text-muted-foreground">Original: {document.file.name}</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={document.displayName}
+                        onChange={(event) =>
+                          setDocuments((prev) =>
+                            prev.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, displayName: event.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Project Type</p>
+              <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Name</span><span className="font-medium text-right">{selectedProjectType?.name ?? "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Duration</span><span className="font-medium text-right">{selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Minimum Amount</span><span className="font-medium text-right">{selectedProjectType ? `Rs. ${selectedProjectTypeMinimumAmount.toFixed(2)}` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Return Per Rs.100</span><span className="font-medium text-right">{selectedProjectType?.maturityAmountPerHundred ?? "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Return Multiple</span><span className="font-medium text-right">{selectedProjectType?.maturityMultiple ?? "N/A"}x</span></div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Calculation Preview</p>
+              <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Deposit Amount</span><span className="font-medium text-right">{depositAmount ? `Rs. ${Number(depositAmount).toFixed(2)}` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Initial Paid</span><span className="font-medium text-right">{initialPaymentAmount ? `Rs. ${Number(initialPaymentAmount).toFixed(2)}` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Pending Amount</span><span className="font-medium text-right">{depositAmount && initialPaymentAmount ? `Rs. ${(Number(depositAmount) - Number(initialPaymentAmount)).toFixed(2)}` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Maturity Amount</span><span className="font-semibold text-right">{maturityAmountPreview !== null ? `Rs. ${maturityAmountPreview.toFixed(2)}` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Estimated Gain</span><span className="font-semibold text-right text-emerald-700">{maturityGainPreview !== null ? `Rs. ${maturityGainPreview.toFixed(2)}` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Maturity Date</span><span className="font-medium text-right">{maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}</span></div>
+              </div>
             </div>
           </div>
 

@@ -13,6 +13,7 @@ import { getApiErrorMessage } from "@/lib/apiError";
 const schema = z.object({
   name: z.string().trim().min(2, "Name is required").max(120),
   duration: z.number().int().min(1, "Duration must be at least 1 month").max(360),
+  minimumAmount: z.number().min(1, "Minimum amount must be greater than 0").max(100000000),
   maturityAmountPerHundred: z.number().min(1, "Return amount must be greater than 0").max(100000),
   maturityMultiple: z.number().min(0.1, "Maturity multiple must be greater than 0").max(100),
 });
@@ -40,9 +41,10 @@ export const CreateProjectTypeDialog = ({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
-      duration: 12,
-      maturityAmountPerHundred: 150,
-      maturityMultiple: 1.5,
+      duration: undefined,
+      minimumAmount: undefined,
+      maturityAmountPerHundred: undefined,
+      maturityMultiple: undefined,
     },
   });
 
@@ -77,16 +79,31 @@ export const CreateProjectTypeDialog = ({
             {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <RequiredLabel htmlFor="fd-project-duration">Duration (months)</RequiredLabel>
               <Input
                 id="fd-project-duration"
                 type="number"
+                placeholder="Enter duration"
                 {...register("duration", { valueAsNumber: true })}
               />
               {errors.duration ? (
                 <p className="text-sm text-destructive">{errors.duration.message}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <RequiredLabel htmlFor="fd-project-minimum">Minimum Amount</RequiredLabel>
+              <Input
+                id="fd-project-minimum"
+                type="number"
+                step="0.01"
+                placeholder="Enter minimum amount"
+                {...register("minimumAmount", { valueAsNumber: true })}
+              />
+              {errors.minimumAmount ? (
+                <p className="text-sm text-destructive">{errors.minimumAmount.message}</p>
               ) : null}
             </div>
 
@@ -96,25 +113,26 @@ export const CreateProjectTypeDialog = ({
                 id="fd-project-return"
                 type="number"
                 step="0.01"
+                placeholder="Enter return per 100"
                 {...register("maturityAmountPerHundred", { valueAsNumber: true })}
               />
               {errors.maturityAmountPerHundred ? (
                 <p className="text-sm text-destructive">{errors.maturityAmountPerHundred.message}</p>
               ) : null}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <RequiredLabel htmlFor="fd-project-multiple">Maturity Multiple</RequiredLabel>
-            <Input
-              id="fd-project-multiple"
-              type="number"
-              step="0.01"
-              {...register("maturityMultiple", { valueAsNumber: true })}
-            />
-            {errors.maturityMultiple ? (
-              <p className="text-sm text-destructive">{errors.maturityMultiple.message}</p>
-            ) : null}
+            <div className="space-y-2">
+              <RequiredLabel htmlFor="fd-project-multiple">Maturity Multiple</RequiredLabel>
+              <Input
+                id="fd-project-multiple"
+                type="number"
+                step="0.01"
+                placeholder="Enter maturity multiple"
+                {...register("maturityMultiple", { valueAsNumber: true })}
+              />
+              {errors.maturityMultiple ? (
+                <p className="text-sm text-destructive">{errors.maturityMultiple.message}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

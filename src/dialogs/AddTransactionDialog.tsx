@@ -208,7 +208,7 @@ export const AddTransactionDialog = ({
                   value: option.id,
                   label: option.label,
                 }))}
-                placeholder="Select fixed deposit account"
+                placeholder="Search FD by id, customer name, phone"
               />
               {errors.fixedDepositId?.message ? (
                 <p className="text-sm text-destructive">{errors.fixedDepositId.message}</p>
@@ -287,7 +287,7 @@ export const AddTransactionDialog = ({
             </Select>
           </div>
 
-          {(paymentMethod === "UPI" || paymentMethod === "CASH") && (
+          {paymentMethod === "UPI" && (
             <div className="space-y-2">
               <Label>Transaction ID</Label>
               <Input {...register("transactionId")} />

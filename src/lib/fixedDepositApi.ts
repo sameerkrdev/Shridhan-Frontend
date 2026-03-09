@@ -8,6 +8,7 @@ export interface FixedDepositProjectType {
   id: string;
   name: string;
   duration: number;
+  minimumAmount: string;
   maturityMultiple: string;
   maturityAmountPerHundred: string;
   societyId: string;
@@ -109,6 +110,7 @@ export interface ReferrerMember {
 export interface CreateProjectTypePayload {
   name: string;
   duration: number;
+  minimumAmount: number;
   maturityAmountPerHundred: number;
   maturityMultiple: number;
 }

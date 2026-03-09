@@ -358,7 +358,7 @@ const FixedDepositsPage = () => {
     () =>
       fdRows.map((fd) => ({
         id: fd.id,
-        label: `${fd.customer.fullName} - ${fd.projectType.name} (${fd.customer.phone})`,
+        label: `${fd.customer.fullName} - ${fd.customer.phone} (${fd.id})`,
       })),
     [fdRows],
   );
@@ -511,6 +511,7 @@ const FixedDepositsPage = () => {
               <TableRow className="bg-muted/50">
                 <TableHead>Name</TableHead>
                 <TableHead>Duration</TableHead>
+                <TableHead>Minimum Amount</TableHead>
                 <TableHead>Return Rate</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -519,13 +520,13 @@ const FixedDepositsPage = () => {
             <TableBody>
               {isProjectTypesLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Loading project types...
                   </TableCell>
                 </TableRow>
               ) : projectTypeRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No project types found.
                   </TableCell>
                 </TableRow>
@@ -534,6 +535,7 @@ const FixedDepositsPage = () => {
                   <TableRow key={projectType.id}>
                     <TableCell className="font-medium">{projectType.name}</TableCell>
                     <TableCell>{projectType.duration} months</TableCell>
+                    <TableCell>{formatCurrency(projectType.minimumAmount)}</TableCell>
                     <TableCell>{projectType.maturityAmountPerHundred} per Rs.100</TableCell>
                     <TableCell>
                       {projectType.isDeleted ? (
@@ -574,28 +576,6 @@ const FixedDepositsPage = () => {
       <section className="space-y-2 mt-18">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">FD Accounts</h2>
-          <div className="flex flex-wrap gap-2">
-            <Can action="fixed_deposit.create">
-              <Button
-                type="button"
-                className="bg-blue-600 text-white hover:bg-blue-700"
-                onClick={() => setIsCreateFdDialogOpen(true)}
-                disabled={activeProjectTypes.length === 0}
-              >
-                Create FD Account
-              </Button>
-            </Can>
-            <Can action="fixed_deposit.add_transaction">
-              <Button
-                type="button"
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
-                onClick={() => setIsAddTransactionDialogOpen(true)}
-                disabled={(fdRows?.length ?? 0) === 0}
-              >
-                Add Transaction
-              </Button>
-            </Can>
-          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -636,8 +616,9 @@ const FixedDepositsPage = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="w-full md:ml-auto md:w-[360px]">
+          <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 md:w-auto">
             <Input
+              className="w-full md:w-[360px]"
               value={searchText}
               onChange={(event) => {
                 setSearchText(event.target.value);
@@ -645,6 +626,26 @@ const FixedDepositsPage = () => {
               }}
               placeholder="Search by ID, name, phone, amount, date, maturity..."
             />
+            <Can action="fixed_deposit.create">
+              <Button
+                type="button"
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => setIsCreateFdDialogOpen(true)}
+                disabled={activeProjectTypes.length === 0}
+              >
+                Create FD Account
+              </Button>
+            </Can>
+            <Can action="fixed_deposit.add_transaction">
+              <Button
+                type="button"
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={() => setIsAddTransactionDialogOpen(true)}
+                disabled={(fdRows?.length ?? 0) === 0}
+              >
+                Add Transaction
+              </Button>
+            </Can>
           </div>
         </div>
         <div className="rounded-lg border overflow-auto max-h-[540px]">

@@ -70,6 +70,7 @@ export const useCreateProjectTypeMutation = (societyId: string) => {
     mutationFn: (payload: {
       name: string;
       duration: number;
+      minimumAmount: number;
       maturityAmountPerHundred: number;
       maturityMultiple: number;
     }) => createProjectType(societyId, payload),
