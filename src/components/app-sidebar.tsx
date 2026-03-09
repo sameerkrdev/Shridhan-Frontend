@@ -69,7 +69,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
 
     if (hasPermission(permissions, "fixed_deposit.list")) {
-      items.push({ title: "Fixed Deposits", url: "/dashboard/fixed-deposits", icon: IconCoins });
+      items.push({ title: "Fixed Deposits", url: "/fixed-deposits", icon: IconCoins });
+    }
+    if (hasPermission(permissions, "mis.list")) {
+      items.push({ title: "MIS", url: "/mis", icon: IconCoins });
     }
 
     items.push({ title: "Analytics", url: "#", icon: IconChartBar });

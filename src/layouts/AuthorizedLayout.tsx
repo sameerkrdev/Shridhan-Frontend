@@ -24,6 +24,8 @@ const AuthorizedLayout = () => {
   const location = useLocation();
   const isHydrated = useAuthSessionStore((state) => state.isHydrated);
   const isAuthenticated = useAuthSessionStore((state) => state.isAuthenticated);
+  const hadSession = useAuthSessionStore((state) => state.hadSession);
+  const hasRestoredSession = useAuthSessionStore((state) => state.hasRestoredSession);
   const selectedMembership = useAuthSessionStore((state) => state.selectedMembership);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
   const [dismissedBannerForSocietyId, setDismissedBannerForSocietyId] = useState<string | null>(null);
@@ -83,7 +85,9 @@ const AuthorizedLayout = () => {
     return () => { window.clearTimeout(timer); };
   }, [billingOverview, selectedMembership?.societyId, location.pathname]);
 
-  if (!isHydrated) return <FullPageLoader />;
+  const isSessionRestorePending = hadSession && !hasRestoredSession;
+
+  if (!isHydrated || isSessionRestorePending) return <FullPageLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!selectedMembership) return <Navigate to="/society-selector" replace />;
 
