@@ -13,6 +13,7 @@ import {
   requestFdDocumentUploadUrl,
   updateFdStatus,
   updateProjectTypeStatus,
+  type MaturityCalculationMethod,
 } from "@/lib/fixedDepositApi";
 
 export const useProjectTypesQuery = (societyId: string | null, includeDeleted = false) => {
@@ -71,8 +72,8 @@ export const useCreateProjectTypeMutation = (societyId: string) => {
       name: string;
       duration: number;
       minimumAmount: number;
-      maturityAmountPerHundred: number;
-      maturityMultiple: number;
+      maturityCalculationMethod: MaturityCalculationMethod;
+      maturityValue: number;
     }) => createProjectType(societyId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["fd-project-types", societyId] });
