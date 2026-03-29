@@ -16,6 +16,7 @@ import RazorpayPendingPage from "@/pages/RazorpayPendingPage";
 import SubscriptionStatusPage from "@/pages/SubscriptionStatusPage";
 import FixedDepositsPage from "@/pages/FixedDepositsPage";
 import MisPage from "@/pages/MisPage";
+import RecurringDepositsPage from "@/pages/RecurringDepositsPage";
 
 const router = createBrowserRouter([
   {
@@ -32,7 +33,7 @@ const router = createBrowserRouter([
           { path: "billing", element: <SubscriptionStatusPage /> },
           { path: "fixed-deposits", element: <FixedDepositsPage /> },
           { path: "mis", element: <MisPage /> },
-          { path: "mis", element: <MisPage /> },
+          { path: "recurring-deposits", element: <RecurringDepositsPage /> },
         ],
       },
       {
