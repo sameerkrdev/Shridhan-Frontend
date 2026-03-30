@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useWithdrawRdMutation } from "@/hooks/useRdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -20,15 +21,35 @@ interface RdWithdrawDialogProps {
   onOpenChange: (open: boolean) => void;
   societyId: string;
   rdId: string;
+  summary?: {
+    grossMaturityPayout?: string;
+    totalDeferredFines?: string;
+    netMaturityPayoutAfterDeferredFines?: string;
+  };
 }
 
-export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId }: RdWithdrawDialogProps) => {
+export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId, summary }: RdWithdrawDialogProps) => {
   const [paymentMethod, setPaymentMethod] = useState<"UPI" | "CASH" | "CHEQUE">("CASH");
   const [transactionId, setTransactionId] = useState("");
   const [upiId, setUpiId] = useState("");
   const [bankName, setBankName] = useState("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const totalDeferred = Number(summary?.totalDeferredFines ?? "0");
+  const hasDeferredFines = totalDeferred > 0;
+  const [deductDeferredFinesFromMaturity, setDeductDeferredFinesFromMaturity] = useState(hasDeferredFines);
   const mutation = useWithdrawRdMutation(societyId, rdId);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setPaymentMethod("CASH");
+      setTransactionId("");
+      setUpiId("");
+      setBankName("");
+      setChequeNumber("");
+      setDeductDeferredFinesFromMaturity(hasDeferredFines);
+    }
+    onOpenChange(nextOpen);
+  };
 
   const canSubmit =
     paymentMethod === "CASH" ||
@@ -39,6 +60,7 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId }: RdWith
     if (!canSubmit) return;
     try {
       await mutation.mutateAsync({
+        deductDeferredFinesFromMaturity,
         paymentMethod,
         transactionId: transactionId.trim() || undefined,
         upiId: upiId.trim() || undefined,
@@ -53,7 +75,7 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId }: RdWith
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Maturity withdrawal</DialogTitle>
@@ -63,6 +85,29 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId }: RdWith
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="rounded-md border p-3 space-y-1 text-sm">
+            <p className="flex justify-between gap-2">
+              <span>Gross maturity amount</span>
+              <span>Rs. {Number(summary?.grossMaturityPayout ?? "0").toFixed(2)}</span>
+            </p>
+            <p className="flex justify-between gap-2">
+              <span>Deferred fines</span>
+              <span>Rs. {Number(summary?.totalDeferredFines ?? "0").toFixed(2)}</span>
+            </p>
+            <p className="flex justify-between gap-2 font-medium">
+              <span>Net payout preview</span>
+              <span>Rs. {Number(summary?.netMaturityPayoutAfterDeferredFines ?? "0").toFixed(2)}</span>
+            </p>
+          </div>
+          {hasDeferredFines ? (
+            <label className="flex items-center gap-2 rounded-md border p-3">
+              <Checkbox
+                checked={deductDeferredFinesFromMaturity}
+                onCheckedChange={(checked) => setDeductDeferredFinesFromMaturity(checked === true)}
+              />
+              <span className="text-sm">Deduct deferred penalties from maturity payout</span>
+            </label>
+          ) : null}
           <div className="space-y-2">
             <Label>Payout method</Label>
             <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as typeof paymentMethod)}>

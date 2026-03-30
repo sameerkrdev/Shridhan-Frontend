@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addMisDeposit,
+  type MisCalculationMethod,
   completeMisDocumentUpload,
   createMisAccount,
   createMisProjectType,
@@ -36,7 +37,14 @@ export const useMisAccountsQuery = (
   params: {
     page: number;
     pageSize: number;
-    sortBy?: "id" | "customer_name" | "phone" | "deposit_amount" | "monthly_interest" | "maturity_date" | "status";
+    sortBy?:
+      | "id"
+      | "customer_name"
+      | "phone"
+      | "deposit_amount"
+      | "monthly_interest"
+      | "maturity_date"
+      | "status";
     sortOrder?: "asc" | "desc";
     search?: string;
     includeDeleted?: boolean;
@@ -58,7 +66,11 @@ export const useMisAccountsQuery = (
   });
 };
 
-export const useMisDetailQuery = (societyId: string | null, misId: string | null, enabled = true) => {
+export const useMisDetailQuery = (
+  societyId: string | null,
+  misId: string | null,
+  enabled = true,
+) => {
   return useQuery({
     queryKey: ["mis-detail", societyId, misId],
     queryFn: () => getMisDetail(societyId!, misId!),
@@ -73,8 +85,9 @@ export const useCreateMisProjectTypeMutation = (societyId: string) => {
       name: string;
       duration: number;
       minimumAmount: number;
-      monthlyInterestRate?: number;
-      monthlyInterestPerLakh?: number;
+      calculationMethod: MisCalculationMethod;
+      monthlyPayoutAmountPerHundred?: number;
+      annualInterestRate?: number;
       rules?: string;
     }) => createMisProjectType(societyId, payload),
     onSuccess: () => {

@@ -30,7 +30,7 @@ import { MisDetailDialog } from "@/dialogs/MisDetailDialog";
 import { AddMisDepositDialog } from "@/dialogs/AddMisDepositDialog";
 import { PayMisInterestDialog } from "@/dialogs/PayMisInterestDialog";
 import { ReturnMisPrincipalDialog } from "@/dialogs/ReturnMisPrincipalDialog";
-import type { MisAccount } from "@/lib/misApi";
+import type { MisAccount, MisProjectType } from "@/lib/misApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
 
@@ -38,6 +38,13 @@ const formatCurrency = (value: string | number) => {
   const amount = Number(value);
   if (Number.isNaN(amount)) return "Rs. 0.00";
   return `Rs. ${amount.toFixed(2)}`;
+};
+
+const formatMisCalculation = (projectType: MisProjectType) => {
+  if (projectType.calculationMethod === "ANNUAL_INTEREST_RATE") {
+    return `Annual Rate (${Number(projectType.annualInterestRate ?? 0).toFixed(2)}%)`;
+  }
+  return `Monthly Payout / 100 (${Number(projectType.monthlyPayoutAmountPerHundred ?? 0).toFixed(2)})`;
 };
 
 type FilterLogic = "AND" | "OR";
@@ -439,8 +446,7 @@ const MisPage = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Minimum Amount</TableHead>
-                <TableHead>Monthly Rate</TableHead>
-                <TableHead>Per Thousand</TableHead>
+                <TableHead>Calculation</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -464,8 +470,7 @@ const MisPage = () => {
                     <TableCell className="font-medium">{projectType.name}</TableCell>
                     <TableCell>{projectType.duration} months</TableCell>
                     <TableCell>{formatCurrency(projectType.minimumAmount)}</TableCell>
-                    <TableCell>{projectType.monthlyInterestRate ?? "N/A"}</TableCell>
-                    <TableCell>{projectType.monthlyInterestPerLakh ?? "N/A"}</TableCell>
+                    <TableCell>{formatMisCalculation(projectType)}</TableCell>
                     <TableCell>
                       {projectType.isDeleted ? (
                         <Badge variant="destructive">DELETED</Badge>

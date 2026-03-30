@@ -71,12 +71,11 @@ export const useCreateRdProjectTypeMutation = (societyId: string) => {
       name: string;
       duration: number;
       minimumMonthlyAmount: number;
-      interestRate?: number;
-      maturityPerHundred?: number;
+      maturityPerHundred: number;
       fineRatePerHundred: number;
       graceDays: number;
-      penaltyMultiplier: number;
-      penaltyStartMonth: number;
+      penaltyMultiplier?: number;
+      penaltyStartMonth?: number;
     }) => createRdProjectType(societyId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["rd-project-types", societyId] });
@@ -105,7 +104,12 @@ export const useRdReferrerMembersQuery = (societyId: string | null) => {
 
 export const usePreviewRdPaymentMutation = (societyId: string, rdId: string) => {
   return useMutation({
-    mutationFn: (payload: { amount?: number; months?: number[] }) =>
+    mutationFn: (payload: {
+      amount?: number;
+      months?: number[];
+      skipFinePolicy?: "none" | "all" | "selected";
+      skipFineMonths?: number[];
+    }) =>
       previewRdPayment(societyId, rdId, payload),
   });
 };
@@ -116,6 +120,8 @@ export const usePayRdMutation = (societyId: string, rdId: string) => {
     mutationFn: (payload: {
       amount: number;
       months?: number[];
+      skipFinePolicy?: "none" | "all" | "selected";
+      skipFineMonths?: number[];
       paymentMethod?: "UPI" | "CASH" | "CHEQUE";
       transactionId?: string;
       upiId?: string;
@@ -133,6 +139,7 @@ export const useWithdrawRdMutation = (societyId: string, rdId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload?: {
+      deductDeferredFinesFromMaturity?: boolean;
       paymentMethod?: "UPI" | "CASH" | "CHEQUE";
       transactionId?: string;
       upiId?: string;

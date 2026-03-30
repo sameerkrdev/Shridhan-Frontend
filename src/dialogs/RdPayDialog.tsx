@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { usePreviewRdPaymentMutation, usePayRdMutation } from "@/hooks/useRdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { hasPermission } from "@/components/Can";
+import { useAuthSessionStore } from "@/store/authSessionStore";
 
 interface RdPayDialogProps {
   open: boolean;
@@ -18,6 +20,8 @@ interface RdPayDialogProps {
 export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialogProps) => {
   const [amount, setAmount] = useState("");
   const [monthsInput, setMonthsInput] = useState("");
+  const [skipFinePolicy, setSkipFinePolicy] = useState<"none" | "all" | "selected">("none");
+  const [skipFineMonthsInput, setSkipFineMonthsInput] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"UPI" | "CASH" | "CHEQUE">("CASH");
   const [transactionId, setTransactionId] = useState("");
   const [upiId, setUpiId] = useState("");
@@ -26,6 +30,8 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
 
   const previewMutation = usePreviewRdPaymentMutation(societyId, rdId);
   const payMutation = usePayRdMutation(societyId, rdId);
+  const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions ?? []);
+  const canSkipFine = hasPermission(permissions, "recurring_deposit.pay_skip_fine");
 
   const preview = previewMutation.data;
 
@@ -38,10 +44,21 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
       .filter((n) => !Number.isNaN(n) && n > 0);
   }, [monthsInput]);
 
+  const skipFineMonthsParsed = useMemo(() => {
+    const raw = skipFineMonthsInput.trim();
+    if (!raw) return undefined;
+    return raw
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => !Number.isNaN(n) && n > 0);
+  }, [skipFineMonthsInput]);
+
   useEffect(() => {
     if (!open) {
       setAmount("");
       setMonthsInput("");
+      setSkipFinePolicy("none");
+      setSkipFineMonthsInput("");
       setPaymentMethod("CASH");
       setTransactionId("");
       setUpiId("");
@@ -56,11 +73,16 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
       void previewMutation.mutate({
         amount: amount.trim() === "" || Number.isNaN(num) ? undefined : num,
         months: monthsParsed?.length ? monthsParsed : undefined,
+        skipFinePolicy: canSkipFine ? skipFinePolicy : "none",
+        skipFineMonths:
+          canSkipFine && skipFinePolicy === "selected" && skipFineMonthsParsed?.length
+            ? skipFineMonthsParsed
+            : undefined,
       });
     }, 400);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce preview
-  }, [open, amount, monthsInput, societyId, rdId]);
+  }, [open, amount, monthsInput, skipFinePolicy, skipFineMonthsInput, societyId, rdId, canSkipFine]);
 
   const maxDueNum = preview ? Number(preview.maxDue) : NaN;
   const amountNum = Number(amount);
@@ -73,6 +95,7 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
 
   const canSubmit =
     amountValid &&
+    (skipFinePolicy !== "selected" || (skipFineMonthsParsed?.length ?? 0) > 0) &&
     (paymentMethod === "CASH" ||
       (paymentMethod === "UPI" && transactionId.trim() && upiId.trim()) ||
       (paymentMethod === "CHEQUE" && bankName.trim() && chequeNumber.trim()));
@@ -83,6 +106,11 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
       await payMutation.mutateAsync({
         amount: amountNum,
         months: monthsParsed?.length ? monthsParsed : undefined,
+        skipFinePolicy: canSkipFine ? skipFinePolicy : "none",
+        skipFineMonths:
+          canSkipFine && skipFinePolicy === "selected" && skipFineMonthsParsed?.length
+            ? skipFineMonthsParsed
+            : undefined,
         paymentMethod,
         transactionId: transactionId.trim() || undefined,
         upiId: upiId.trim() || undefined,
@@ -125,6 +153,32 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
             ) : null}
           </div>
 
+          {canSkipFine ? (
+            <div className="space-y-2 rounded-md border p-3">
+              <Label>Fine handling</Label>
+              <Select value={skipFinePolicy} onValueChange={(v) => setSkipFinePolicy(v as typeof skipFinePolicy)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Standard (collect fines now)</SelectItem>
+                  <SelectItem value="all">Skip fine for all due months in scope</SelectItem>
+                  <SelectItem value="selected">Skip fine for selected months</SelectItem>
+                </SelectContent>
+              </Select>
+              {skipFinePolicy === "selected" ? (
+                <Input
+                  placeholder="Skip-fine month indexes (e.g. 1,2,3)"
+                  value={skipFineMonthsInput}
+                  onChange={(e) => setSkipFineMonthsInput(e.target.value)}
+                />
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                Skipped fines are deferred and deducted during maturity withdrawal.
+              </p>
+            </div>
+          ) : null}
+
           {previewMutation.isPending ? (
             <p className="text-sm text-muted-foreground">Updating preview...</p>
           ) : preview ? (
@@ -133,14 +187,24 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
               {preview.allocations.length === 0 ? (
                 <p className="text-muted-foreground">Enter amount to see allocation.</p>
               ) : (
-                preview.allocations.map((a) => (
-                  <div key={`${a.installmentId}-${a.monthIndex}`} className="flex justify-between gap-2">
+                preview.allocations.map((a, idx) => (
+                  <div key={`${a.installmentId}-${a.monthIndex}-${idx}`} className="flex justify-between gap-2">
                     <span>
                       Month {a.monthIndex}: principal {a.principalApplied}, fine {a.fineApplied}
                     </span>
                   </div>
                 ))
               )}
+              {preview.deferredFineDeltas.length ? (
+                <div className="border-t pt-2">
+                  <p className="font-medium">Deferred fine preview</p>
+                  {preview.deferredFineDeltas.map((d, idx) => (
+                    <p key={`${d.installmentId}-${d.monthIndex}-${idx}`} className="text-muted-foreground">
+                      Month {d.monthIndex}: deferred fine {d.deferredFineDelta}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

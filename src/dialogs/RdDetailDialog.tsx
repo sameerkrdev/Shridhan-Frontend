@@ -71,6 +71,14 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                     <p className="text-xs text-muted-foreground">Total outstanding</p>
                     <p className="font-semibold">{formatCurrency(data.summary.totalOutstanding)}</p>
                   </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Deferred fines</p>
+                    <p className="font-semibold">{formatCurrency(data.summary.totalDeferredFines)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Net maturity after deferred fines</p>
+                    <p className="font-semibold">{formatCurrency(data.summary.netMaturityPayoutAfterDeferredFines)}</p>
+                  </div>
                 </div>
               </div>
 
@@ -114,6 +122,7 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                         <TableHead>Due</TableHead>
                         <TableHead>Remaining</TableHead>
                         <TableHead>Fine</TableHead>
+                        <TableHead>Deferred fine</TableHead>
                         <TableHead>Total due</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
@@ -125,6 +134,7 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                           <TableCell>{formatDate(row.dueDate)}</TableCell>
                           <TableCell>{formatCurrency(row.remainingPrincipal)}</TableCell>
                           <TableCell>{formatCurrency(row.fine)}</TableCell>
+                          <TableCell>{formatCurrency(row.deferredFineAccrued)}</TableCell>
                           <TableCell>{formatCurrency(row.totalDue)}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{row.computedStatus}</Badge>
@@ -184,7 +194,13 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
       {rdId ? (
         <>
           <RdPayDialog open={payOpen} onOpenChange={setPayOpen} societyId={societyId} rdId={rdId} />
-          <RdWithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} societyId={societyId} rdId={rdId} />
+          <RdWithdrawDialog
+            open={withdrawOpen}
+            onOpenChange={setWithdrawOpen}
+            societyId={societyId}
+            rdId={rdId}
+            summary={data?.summary}
+          />
         </>
       ) : null}
     </>

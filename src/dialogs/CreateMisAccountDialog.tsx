@@ -124,6 +124,15 @@ const schema = z
 
 type FormData = z.infer<typeof schema>;
 
+const getMonthlyPayoutForProjectType = (projectType: MisProjectType, depositAmount: number) => {
+  if (projectType.calculationMethod === "ANNUAL_INTEREST_RATE") {
+    const annualRate = Number(projectType.annualInterestRate ?? 0);
+    return (depositAmount * annualRate) / 100 / 12;
+  }
+  const perHundred = Number(projectType.monthlyPayoutAmountPerHundred ?? 0);
+  return (depositAmount / 100) * perHundred;
+};
+
 interface CreateMisAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -236,11 +245,7 @@ export const CreateMisAccountDialog = ({
 
   const monthlyInterestPreview = useMemo(() => {
     if (!selectedProjectType) return 0;
-    const perThousand = Number(selectedProjectType.monthlyInterestPerLakh ?? 0);
-    const rate = Number(selectedProjectType.monthlyInterestRate ?? 0);
-    if (perThousand > 0) return (depositAmount / 1000) * perThousand;
-    if (rate > 0) return (depositAmount * rate) / 100;
-    return 0;
+    return getMonthlyPayoutForProjectType(selectedProjectType, depositAmount);
   }, [depositAmount, selectedProjectType]);
 
   const maturityDatePreview = useMemo(() => {
@@ -264,11 +269,12 @@ export const CreateMisAccountDialog = ({
   );
   const interestTypePreview = useMemo(() => {
     if (!selectedProjectType) return "N/A";
-    const perThousand = Number(selectedProjectType.monthlyInterestPerLakh ?? 0);
-    const rate = Number(selectedProjectType.monthlyInterestRate ?? 0);
-    if (perThousand > 0) return `Amount Per Thousand (${perThousand.toFixed(2)})`;
-    if (rate > 0) return `Rate (%) (${rate.toFixed(2)}%)`;
-    return "N/A";
+    if (selectedProjectType.calculationMethod === "ANNUAL_INTEREST_RATE") {
+      const annualRate = Number(selectedProjectType.annualInterestRate ?? 0);
+      return `Annual Interest Rate (${annualRate.toFixed(2)}%)`;
+    }
+    const perHundred = Number(selectedProjectType.monthlyPayoutAmountPerHundred ?? 0);
+    return `Monthly Amount Per Hundred (${perHundred.toFixed(2)})`;
   }, [selectedProjectType]);
   const totalInterestPreview = useMemo(
     () => (selectedProjectType ? monthlyInterestPreview * selectedProjectType.duration : 0),

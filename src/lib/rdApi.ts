@@ -3,18 +3,18 @@ import { apiClient } from "@/lib/apiClient";
 export type PaymentMethod = "UPI" | "CASH" | "CHEQUE";
 export type ServiceStatus = "PENDING_DEPOSIT" | "ACTIVE" | "COMPLETED" | "CLOSED";
 export type RdInstallmentStatus = "PENDING" | "OVERDUE" | "PARTIAL" | "PAID";
+export type SkipFinePolicy = "none" | "all" | "selected";
 
 export interface RdProjectType {
   id: string;
   name: string;
   duration: number;
   minimumMonthlyAmount: string;
-  interestRate?: string | null;
-  maturityPerHundred?: string | null;
+  maturityPerHundred: string;
   fineRatePerHundred: string;
   graceDays: number;
-  penaltyMultiplier: string;
-  penaltyStartMonth: number;
+  penaltyMultiplier?: string | null;
+  penaltyStartMonth?: number | null;
   isArchived?: boolean;
   isDeleted?: boolean;
   createdAt: string;
@@ -51,6 +51,7 @@ export interface RdInstallmentRow {
   remainingPrincipal: string;
   fine: string;
   totalDue: string;
+  deferredFineAccrued: string;
   computedStatus: RdInstallmentStatus;
 }
 
@@ -94,6 +95,9 @@ export interface RdDetail extends RdAccount {
   summary: {
     totalOutstanding: string;
     expectedMaturityPayout: string;
+    grossMaturityPayout: string;
+    totalDeferredFines: string;
+    netMaturityPayoutAfterDeferredFines: string;
     totalPrincipalExpected: string;
   };
 }
@@ -123,11 +127,18 @@ export interface RdReferrerMember {
 export interface RdPreviewPayResponse {
   maxDue: string;
   amount: string;
+  skipFinePolicy: SkipFinePolicy;
+  skipFineMonths: number[];
   allocations: Array<{
     installmentId: string;
     monthIndex: number;
     principalApplied: string;
     fineApplied: string;
+  }>;
+  deferredFineDeltas: Array<{
+    installmentId: string;
+    monthIndex: number;
+    deferredFineDelta: string;
   }>;
   unallocated: string;
   lines: Array<{
@@ -151,12 +162,11 @@ export const createRdProjectType = async (
     name: string;
     duration: number;
     minimumMonthlyAmount: number;
-    interestRate?: number;
-    maturityPerHundred?: number;
+    maturityPerHundred: number;
     fineRatePerHundred: number;
     graceDays: number;
-    penaltyMultiplier: number;
-    penaltyStartMonth: number;
+    penaltyMultiplier?: number;
+    penaltyStartMonth?: number;
   },
 ) => {
   const { data } = await apiClient.post<RdProjectType>("/recurring-deposits/project-types", payload, societyHeader(societyId));
@@ -257,7 +267,12 @@ export const getRdDetail = async (societyId: string, rdId: string) => {
 export const previewRdPayment = async (
   societyId: string,
   rdId: string,
-  payload: { amount?: number; months?: number[] },
+  payload: {
+    amount?: number;
+    months?: number[];
+    skipFinePolicy?: SkipFinePolicy;
+    skipFineMonths?: number[];
+  },
 ) => {
   const { data } = await apiClient.post<RdPreviewPayResponse>(
     `/recurring-deposits/${rdId}/preview-pay`,
@@ -273,6 +288,8 @@ export const payRd = async (
   payload: {
     amount: number;
     months?: number[];
+    skipFinePolicy?: SkipFinePolicy;
+    skipFineMonths?: number[];
     paymentMethod?: PaymentMethod;
     transactionId?: string;
     upiId?: string;
@@ -288,6 +305,7 @@ export const withdrawRd = async (
   societyId: string,
   rdId: string,
   payload?: {
+    deductDeferredFinesFromMaturity?: boolean;
     paymentMethod?: PaymentMethod;
     transactionId?: string;
     upiId?: string;

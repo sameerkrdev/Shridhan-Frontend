@@ -3,14 +3,16 @@ import { apiClient } from "@/lib/apiClient";
 export type PaymentMethod = "UPI" | "CASH" | "CHEQUE";
 export type ServiceStatus = "PENDING_DEPOSIT" | "ACTIVE" | "COMPLETED" | "CLOSED";
 export type MisTransactionType = "DEPOSIT" | "INTEREST_PAYOUT" | "PRINCIPAL_RETURN";
+export type MisCalculationMethod = "MONTHLY_PAYOUT_PER_HUNDRED" | "ANNUAL_INTEREST_RATE";
 
 export interface MisProjectType {
   id: string;
   name: string;
   duration: number;
   minimumAmount: string;
-  monthlyInterestRate?: string | null;
-  monthlyInterestPerLakh?: string | null;
+  calculationMethod: MisCalculationMethod;
+  monthlyPayoutAmountPerHundred: string | null;
+  annualInterestRate: string | null;
   isArchived?: boolean;
   isDeleted?: boolean;
   createdAt: string;
@@ -127,12 +129,17 @@ export const createMisProjectType = async (
     name: string;
     duration: number;
     minimumAmount: number;
-    monthlyInterestRate?: number;
-    monthlyInterestPerLakh?: number;
+    calculationMethod: MisCalculationMethod;
+    monthlyPayoutAmountPerHundred?: number;
+    annualInterestRate?: number;
     rules?: string;
   },
 ) => {
-  const { data } = await apiClient.post<MisProjectType>("/mis/project-types", payload, societyHeader(societyId));
+  const { data } = await apiClient.post<MisProjectType>(
+    "/mis/project-types",
+    payload,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -196,7 +203,10 @@ export const createMisAccount = async (
 };
 
 export const listMisReferrerMembers = async (societyId: string) => {
-  const { data } = await apiClient.get<{ members: MisReferrerMember[] }>("/mis/referrers", societyHeader(societyId));
+  const { data } = await apiClient.get<{ members: MisReferrerMember[] }>(
+    "/mis/referrers",
+    societyHeader(societyId),
+  );
   return data.members;
 };
 
@@ -205,7 +215,14 @@ export const listMisAccounts = async (
   params: {
     page: number;
     pageSize: number;
-    sortBy?: "id" | "customer_name" | "phone" | "deposit_amount" | "monthly_interest" | "maturity_date" | "status";
+    sortBy?:
+      | "id"
+      | "customer_name"
+      | "phone"
+      | "deposit_amount"
+      | "monthly_interest"
+      | "maturity_date"
+      | "status";
     sortOrder?: "asc" | "desc";
     search?: string;
     includeDeleted?: boolean;
@@ -242,7 +259,11 @@ export const addMisDeposit = async (
     chequeNumber?: string;
   },
 ) => {
-  const { data } = await apiClient.post<MisTransaction>(`/mis/${misId}/deposit`, payload, societyHeader(societyId));
+  const { data } = await apiClient.post<MisTransaction>(
+    `/mis/${misId}/deposit`,
+    payload,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -296,7 +317,10 @@ export const deleteMisProjectType = async (societyId: string, projectTypeId: str
 };
 
 export const deleteMisAccount = async (societyId: string, misId: string) => {
-  const { data } = await apiClient.delete<{ success: boolean }>(`/mis/${misId}`, societyHeader(societyId));
+  const { data } = await apiClient.delete<{ success: boolean }>(
+    `/mis/${misId}`,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -318,7 +342,11 @@ export const requestMisDocumentUploadUrl = async (
   return data;
 };
 
-export const completeMisDocumentUpload = async (societyId: string, misId: string, documentId: string) => {
+export const completeMisDocumentUpload = async (
+  societyId: string,
+  misId: string,
+  documentId: string,
+) => {
   const { data } = await apiClient.post<MisDocument>(
     `/mis/${misId}/documents/${documentId}/complete`,
     {},
