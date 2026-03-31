@@ -5,12 +5,16 @@ export type ServiceStatus = "PENDING_DEPOSIT" | "ACTIVE" | "COMPLETED" | "CLOSED
 export type RdInstallmentStatus = "PENDING" | "OVERDUE" | "PARTIAL" | "PAID";
 export type SkipFinePolicy = "none" | "all" | "selected";
 
+export type RdFineCalculationMethod = "FIXED_PER_STREAK_UNIT" | "PROPORTIONAL_PER_HUNDRED";
+
 export interface RdProjectType {
   id: string;
   name: string;
   duration: number;
   minimumMonthlyAmount: string;
   maturityPerHundred: string;
+  fineCalculationMethod: RdFineCalculationMethod;
+  fixedOverdueFineAmount: string | null;
   fineRatePerHundred: string;
   graceDays: number;
   penaltyMultiplier?: string | null;
@@ -163,7 +167,9 @@ export const createRdProjectType = async (
     duration: number;
     minimumMonthlyAmount: number;
     maturityPerHundred: number;
-    fineRatePerHundred: number;
+    fineCalculationMethod: RdFineCalculationMethod;
+    fixedOverdueFineAmount?: number;
+    fineRatePerHundred?: number;
     graceDays: number;
     penaltyMultiplier?: number;
     penaltyStartMonth?: number;

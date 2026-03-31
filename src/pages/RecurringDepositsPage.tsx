@@ -154,7 +154,7 @@ const RecurringDepositsPage = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Min monthly</TableHead>
-                <TableHead>Fine / ₹100</TableHead>
+                <TableHead>Overdue fee</TableHead>
                 <TableHead>Grace days</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -179,7 +179,11 @@ const RecurringDepositsPage = () => {
                     <TableCell className="font-medium">{projectType.name}</TableCell>
                     <TableCell>{projectType.duration} months</TableCell>
                     <TableCell>{formatCurrency(projectType.minimumMonthlyAmount)}</TableCell>
-                    <TableCell>{projectType.fineRatePerHundred}</TableCell>
+                    <TableCell>
+                      {projectType.fineCalculationMethod === "FIXED_PER_STREAK_UNIT"
+                        ? `Fixed ${formatCurrency(projectType.fixedOverdueFineAmount ?? 0)}`
+                        : `${projectType.fineRatePerHundred} / ₹100`}
+                    </TableCell>
                     <TableCell>{projectType.graceDays}</TableCell>
                     <TableCell>
                       {projectType.isDeleted ? (

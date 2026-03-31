@@ -11,6 +11,7 @@ import {
   payRd,
   previewRdPayment,
   withdrawRd,
+  type RdFineCalculationMethod,
 } from "@/lib/rdApi";
 
 export const useRdProjectTypesQuery = (
@@ -72,7 +73,9 @@ export const useCreateRdProjectTypeMutation = (societyId: string) => {
       duration: number;
       minimumMonthlyAmount: number;
       maturityPerHundred: number;
-      fineRatePerHundred: number;
+      fineCalculationMethod: RdFineCalculationMethod;
+      fixedOverdueFineAmount?: number;
+      fineRatePerHundred?: number;
       graceDays: number;
       penaltyMultiplier?: number;
       penaltyStartMonth?: number;
