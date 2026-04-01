@@ -4,12 +4,16 @@ export type PaymentMethod = "UPI" | "CASH" | "CHEQUE";
 export type TransactionType = "CREDIT" | "PAYOUT";
 export type ServiceStatus = "ACTIVE" | "COMPLETED" | "CLOSED";
 
+export type MaturityCalculationMethod = "PER_RS_100" | "MULTIPLE_OF_PRINCIPAL";
+
 export interface FixedDepositProjectType {
   id: string;
   name: string;
   duration: number;
+  minimumAmount: string;
   maturityMultiple: string;
   maturityAmountPerHundred: string;
+  maturityCalculationMethod?: MaturityCalculationMethod;
   societyId: string;
   isArchived?: boolean;
   isDeleted?: boolean;
@@ -109,8 +113,9 @@ export interface ReferrerMember {
 export interface CreateProjectTypePayload {
   name: string;
   duration: number;
-  maturityAmountPerHundred: number;
-  maturityMultiple: number;
+  minimumAmount: number;
+  maturityCalculationMethod: MaturityCalculationMethod;
+  maturityValue: number;
 }
 
 export interface CreateFdAccountPayload {
@@ -265,7 +270,11 @@ export const addTransaction = async (
   return data;
 };
 
-export const updateFdStatus = async (societyId: string, fdId: string, payload: UpdateFdStatusPayload) => {
+export const updateFdStatus = async (
+  societyId: string,
+  fdId: string,
+  payload: UpdateFdStatusPayload,
+) => {
   const { data } = await apiClient.patch<FixedDepositAccount>(
     `/fixed-deposits/${fdId}/status`,
     payload,
@@ -296,7 +305,10 @@ export const deleteProjectType = async (societyId: string, projectTypeId: string
 };
 
 export const deleteFdAccount = async (societyId: string, fdId: string) => {
-  const { data } = await apiClient.delete<{ success: boolean }>(`/fixed-deposits/${fdId}`, societyHeader(societyId));
+  const { data } = await apiClient.delete<{ success: boolean }>(
+    `/fixed-deposits/${fdId}`,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -321,11 +333,31 @@ export const requestFdDocumentUploadUrl = async (
   return data;
 };
 
-export const completeFdDocumentUpload = async (societyId: string, fdId: string, documentId: string) => {
+export const completeFdDocumentUpload = async (
+  societyId: string,
+  fdId: string,
+  documentId: string,
+) => {
   const { data } = await apiClient.post<FixedDepositDocument>(
     `/fixed-deposits/${fdId}/documents/${documentId}/complete`,
     {},
     societyHeader(societyId),
   );
   return data;
+};
+
+/** Matches server rules in fixedDepositService (per Rs.100 vs principal × multiple). */
+export const computeFdMaturityAmountPreview = (
+  depositAmount: number,
+  projectType:
+    | Pick<FixedDepositProjectType, "maturityCalculationMethod" | "maturityAmountPerHundred" | "maturityMultiple">
+    | null
+    | undefined,
+): number | null => {
+  if (!projectType || !depositAmount || depositAmount <= 0) return null;
+  const method = projectType.maturityCalculationMethod ?? "PER_RS_100";
+  if (method === "MULTIPLE_OF_PRINCIPAL") {
+    return depositAmount * Number(projectType.maturityMultiple);
+  }
+  return (depositAmount / 100) * Number(projectType.maturityAmountPerHundred);
 };

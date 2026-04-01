@@ -2,32 +2,15 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
-import { useCreateFdAccountMutation, useFdReferrerMembersQuery } from "@/hooks/useFixedDepositApi";
-import {
-  completeFdDocumentUpload,
-  computeFdMaturityAmountPreview,
-  type FixedDepositProjectType,
-  type PaymentMethod,
-} from "@/lib/fixedDepositApi";
+import { completeMisDocumentUpload, type MisProjectType } from "@/lib/misApi";
+import { useCreateMisAccountMutation, useMisReferrerMembersQuery } from "@/hooks/useMisApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDate } from "@/lib/dateFormat";
@@ -40,11 +23,7 @@ const schema = z
       phone: z.string().regex(/^[6-9]\d{9}$/, "Phone must be a valid 10-digit Indian number"),
       email: z.string().email("Invalid email").optional().or(z.literal("")),
       address: z.string().max(500).optional(),
-      aadhaar: z
-        .string()
-        .regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits")
-        .optional()
-        .or(z.literal("")),
+      aadhaar: z.string().regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits").optional().or(z.literal("")),
       pan: z
         .string()
         .regex(/^[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}$/, "PAN must be valid (ABCDE1234F)")
@@ -55,17 +34,11 @@ const schema = z
       .array(
         z.object({
           name: z.string().trim().min(2, "Nominee name is required").max(150),
-          phone: z
-            .string()
-            .regex(/^[6-9]\d{9}$/, "Nominee phone must be a valid 10-digit Indian number"),
+          phone: z.string().regex(/^[6-9]\d{9}$/, "Nominee phone must be a valid 10-digit Indian number"),
           relation: z.string().optional(),
           customRelation: z.string().optional(),
           address: z.string().max(500).optional(),
-          aadhaar: z
-            .string()
-            .regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits")
-            .optional()
-            .or(z.literal("")),
+          aadhaar: z.string().regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits").optional().or(z.literal("")),
           pan: z
             .string()
             .regex(/^[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}$/, "PAN must be valid (ABCDE1234F)")
@@ -75,63 +48,49 @@ const schema = z
       )
       .min(1, "At least one nominee is required")
       .max(5, "You can add up to 5 nominees only"),
-    fd: z.object({
-      projectTypeId: z.string().min(1, "Project type is required"),
+    mis: z.object({
+      projectTypeId: z.string().uuid("Project type is required"),
       depositAmount: z.number().min(1, "Deposit amount must be greater than 0"),
       startDate: z.string().min(1, "Start date is required"),
-      initialPaymentAmount: z.number().min(1, "Initial payment must be greater than 0"),
     }),
     payment: z.object({
-      paymentMethod: z.enum(["UPI", "CASH", "CHEQUE"]),
+      amount: z.number().min(0, "Payment amount cannot be negative").optional(),
+      paymentMethod: z.enum(["UPI", "CASH", "CHEQUE"]).optional(),
       transactionId: z.string().optional(),
-      upiId: z
-        .string()
-        .regex(/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z]{2,}$/, "UPI ID is invalid")
-        .optional()
-        .or(z.literal("")),
-      chequeNumber: z.string().optional(),
+      upiId: z.string().optional(),
       bankName: z.string().optional(),
+      chequeNumber: z.string().optional(),
     }),
   })
   .superRefine((payload, ctx) => {
-    if (payload.fd.initialPaymentAmount > payload.fd.depositAmount) {
+    if (payload.payment.amount !== undefined && payload.payment.amount > payload.mis.depositAmount) {
       ctx.addIssue({
         code: "custom",
-        path: ["fd", "initialPaymentAmount"],
-        message: "Initial payment cannot be greater than deposit amount",
+        path: ["payment", "amount"],
+        message: "Initial payment cannot exceed deposit amount",
       });
     }
-
     if (payload.payment.paymentMethod === "UPI") {
       if (!payload.payment.upiId) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["payment", "upiId"],
-          message: "UPI ID is required for UPI payment",
-        });
+        ctx.addIssue({ code: "custom", path: ["payment", "upiId"], message: "UPI ID is required for UPI payments" });
       }
       if (!payload.payment.transactionId) {
         ctx.addIssue({
           code: "custom",
           path: ["payment", "transactionId"],
-          message: "Transaction ID is required for UPI payment",
+          message: "Transaction ID is required for UPI payments",
         });
       }
     }
-
     if (payload.payment.paymentMethod === "CHEQUE") {
-      if (!payload.payment.chequeNumber?.trim()) {
+      if (!payload.payment.bankName) {
+        ctx.addIssue({ code: "custom", path: ["payment", "bankName"], message: "Bank name is required for cheque payments" });
+      }
+      if (!payload.payment.chequeNumber) {
         ctx.addIssue({
           code: "custom",
           path: ["payment", "chequeNumber"],
-          message: "Cheque number is required for cheque payment",
-        });
-      }
-      if (!payload.payment.bankName?.trim()) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["payment", "bankName"],
-          message: "Bank name is required for cheque payment",
+          message: "Cheque number is required for cheque payments",
         });
       }
     }
@@ -165,21 +124,23 @@ const schema = z
 
 type FormData = z.infer<typeof schema>;
 
-interface CreateFdAccountDialogProps {
+const getMonthlyPayoutForProjectType = (projectType: MisProjectType, depositAmount: number) => {
+  if (projectType.calculationMethod === "ANNUAL_INTEREST_RATE") {
+    const annualRate = Number(projectType.annualInterestRate ?? 0);
+    return (depositAmount * annualRate) / 100 / 12;
+  }
+  const perHundred = Number(projectType.monthlyPayoutAmountPerHundred ?? 0);
+  return (depositAmount / 100) * perHundred;
+};
+
+interface CreateMisAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   societyId: string;
-  projectTypes: FixedDepositProjectType[];
+  projectTypes: MisProjectType[];
 }
 
-const getMaturityDate = (startDate: string, durationMonths: number) => {
-  if (!startDate) return null;
-  const parsed = new Date(startDate);
-  if (Number.isNaN(parsed.getTime())) return null;
-  parsed.setMonth(parsed.getMonth() + durationMonths);
-  return parsed;
-};
-
+const formatCurrency = (value: number) => `Rs. ${value.toFixed(2)}`;
 const RELATION_OPTIONS = [
   "FATHER",
   "MOTHER",
@@ -194,24 +155,25 @@ const RELATION_OPTIONS = [
   "OTHER",
 ] as const;
 
-export const CreateFdAccountDialog = ({
+export const CreateMisAccountDialog = ({
   open,
   onOpenChange,
   societyId,
   projectTypes,
-}: CreateFdAccountDialogProps) => {
-  const mutation = useCreateFdAccountMutation(societyId);
-  const { data: referrerMembers } = useFdReferrerMembersQuery(societyId);
+}: CreateMisAccountDialogProps) => {
+  const mutation = useCreateMisAccountMutation(societyId);
+  const { data: referrerMembers } = useMisReferrerMembersQuery(societyId);
   const [documents, setDocuments] = useState<Array<{ file: File; displayName: string }>>([]);
-
   const {
     register,
-    handleSubmit,
     control,
-    reset,
+    watch,
     setValue,
     getValues,
-    watch,
+    handleSubmit,
+    reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -225,29 +187,19 @@ export const CreateFdAccountDialog = ({
         aadhaar: "",
         pan: "",
       },
-      nominees: [
-        {
-          name: "",
-          phone: "",
-          relation: "",
-          customRelation: "",
-          address: "",
-          aadhaar: "",
-          pan: "",
-        },
-      ],
-      fd: {
+      nominees: [{ name: "", phone: "", relation: "", customRelation: "", address: "", aadhaar: "", pan: "" }],
+      mis: {
         projectTypeId: "",
-        depositAmount: 0,
-        startDate: "",
-        initialPaymentAmount: 0,
+        depositAmount: 100000,
+        startDate: new Date().toISOString().slice(0, 10),
       },
       payment: {
+        amount: undefined,
         paymentMethod: "CASH",
         transactionId: "",
         upiId: "",
-        chequeNumber: "",
         bankName: "",
+        chequeNumber: "",
       },
     },
   });
@@ -263,22 +215,21 @@ export const CreateFdAccountDialog = ({
       setDocuments([]);
       return;
     }
-
-    const existingProjectTypeId = getValues("fd.projectTypeId");
+    const existingProjectTypeId = getValues("mis.projectTypeId");
     if (!existingProjectTypeId && projectTypes.length > 0) {
-      setValue("fd.projectTypeId", projectTypes[0].id, { shouldDirty: false });
+      setValue("mis.projectTypeId", projectTypes[0].id, { shouldDirty: false });
     }
   }, [getValues, open, projectTypes, reset, setValue]);
 
-  const selectedProjectTypeId = watch("fd.projectTypeId");
-  const depositAmount = watch("fd.depositAmount");
-  const initialPaymentAmount = watch("fd.initialPaymentAmount");
-  const startDate = watch("fd.startDate");
+  const selectedProjectTypeId = watch("mis.projectTypeId");
+  const depositAmount = watch("mis.depositAmount") ?? 0;
+  const startDate = watch("mis.startDate");
+  const initialPaymentAmount = watch("payment.amount") ?? 0;
   const paymentMethod = watch("payment.paymentMethod");
   const nomineeValues = watch("nominees");
 
   const selectedProjectType = useMemo(
-    () => projectTypes.find((item) => item.id === selectedProjectTypeId),
+    () => projectTypes.find((projectType) => projectType.id === selectedProjectTypeId),
     [projectTypes, selectedProjectTypeId],
   );
   const referrerOptions = useMemo(
@@ -292,31 +243,79 @@ export const CreateFdAccountDialog = ({
     [referrerMembers],
   );
 
-  const maturityAmountPreview = useMemo(() => {
-    if (!selectedProjectType || !depositAmount || depositAmount <= 0) return null;
-    return computeFdMaturityAmountPreview(Number(depositAmount), selectedProjectType);
+  const monthlyInterestPreview = useMemo(() => {
+    if (!selectedProjectType) return 0;
+    return getMonthlyPayoutForProjectType(selectedProjectType, depositAmount);
   }, [depositAmount, selectedProjectType]);
 
   const maturityDatePreview = useMemo(() => {
-    if (!selectedProjectType) return null;
-    return getMaturityDate(startDate, selectedProjectType.duration);
+    if (!selectedProjectType || !startDate) return "";
+    const dt = new Date(startDate);
+    dt.setMonth(dt.getMonth() + selectedProjectType.duration);
+    return dt.toISOString();
   }, [selectedProjectType, startDate]);
+
+  const schedulePreview = useMemo(() => {
+    if (!selectedProjectType) return [];
+    return Array.from({ length: selectedProjectType.duration }).map((_, index) => ({
+      month: index + 1,
+      amount: monthlyInterestPreview,
+    }));
+  }, [monthlyInterestPreview, selectedProjectType]);
+
   const selectedProjectTypeMinimumAmount = useMemo(
     () => Number(selectedProjectType?.minimumAmount ?? 0),
     [selectedProjectType],
   );
-  const maturityGainPreview = useMemo(() => {
-    if (maturityAmountPreview === null || !depositAmount || depositAmount <= 0) return null;
-    return maturityAmountPreview - Number(depositAmount);
-  }, [depositAmount, maturityAmountPreview]);
+  const interestTypePreview = useMemo(() => {
+    if (!selectedProjectType) return "N/A";
+    if (selectedProjectType.calculationMethod === "ANNUAL_INTEREST_RATE") {
+      const annualRate = Number(selectedProjectType.annualInterestRate ?? 0);
+      return `Annual Interest Rate (${annualRate.toFixed(2)}%)`;
+    }
+    const perHundred = Number(selectedProjectType.monthlyPayoutAmountPerHundred ?? 0);
+    return `Monthly Amount Per Hundred (${perHundred.toFixed(2)})`;
+  }, [selectedProjectType]);
+  const totalInterestPreview = useMemo(
+    () => (selectedProjectType ? monthlyInterestPreview * selectedProjectType.duration : 0),
+    [monthlyInterestPreview, selectedProjectType],
+  );
+  const totalReturnPreview = useMemo(
+    () => Number(depositAmount || 0) + totalInterestPreview,
+    [depositAmount, totalInterestPreview],
+  );
+
+  useEffect(() => {
+    if (!selectedProjectType) return;
+    if (depositAmount < selectedProjectTypeMinimumAmount) {
+      setError("mis.depositAmount", {
+        type: "manual",
+        message: `Deposit amount must be greater than or equal to minimum amount (${selectedProjectTypeMinimumAmount.toFixed(2)})`,
+      });
+      return;
+    }
+    if (errors.mis?.depositAmount?.type === "manual") {
+      clearErrors("mis.depositAmount");
+    }
+  }, [
+    clearErrors,
+    depositAmount,
+    errors.mis?.depositAmount?.type,
+    selectedProjectType,
+    selectedProjectTypeMinimumAmount,
+    setError,
+  ]);
 
   const onSubmit = async (values: FormData) => {
-    try {
-      if (values.fd.initialPaymentAmount > values.fd.depositAmount) {
-        toast.error("Initial payment cannot be greater than deposit amount");
-        return;
-      }
+    if (selectedProjectType && values.mis.depositAmount < selectedProjectTypeMinimumAmount) {
+      setError("mis.depositAmount", {
+        type: "manual",
+        message: `Deposit amount must be greater than or equal to minimum amount (${selectedProjectTypeMinimumAmount.toFixed(2)})`,
+      });
+      return;
+    }
 
+    try {
       const created = await mutation.mutateAsync({
         referrerMembershipId:
           values.referrerMembershipId && values.referrerMembershipId !== "none"
@@ -330,15 +329,23 @@ export const CreateFdAccountDialog = ({
           const { customRelation, ...rest } = nominee;
           return {
             ...rest,
-            relation:
-              nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
+            relation: nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
           };
         }),
-        fd: {
-          ...values.fd,
-          initialPaymentAmount: values.fd.initialPaymentAmount,
+        mis: {
+          ...values.mis,
         },
-        payment: values.payment,
+        payment:
+          values.payment.amount !== undefined && values.payment.amount > 0
+            ? {
+                amount: values.payment.amount,
+                paymentMethod: values.payment.paymentMethod,
+                transactionId: values.payment.transactionId || undefined,
+                upiId: values.payment.upiId || undefined,
+                bankName: values.payment.bankName || undefined,
+                chequeNumber: values.payment.chequeNumber || undefined,
+              }
+            : undefined,
         documents: documents.map((item) => ({
           fileName: item.file.name,
           displayName: item.displayName || item.file.name,
@@ -351,8 +358,7 @@ export const CreateFdAccountDialog = ({
         await Promise.all(
           created.uploadTargets.map(async (target) => {
             const source = documents.find(
-              (item) =>
-                item.file.name === target.fileName && item.displayName === target.displayName,
+              (item) => item.file.name === target.fileName && item.displayName === target.displayName,
             );
             if (!source) return;
 
@@ -361,25 +367,23 @@ export const CreateFdAccountDialog = ({
               headers: { "Content-Type": source.file.type || "application/octet-stream" },
               body: source.file,
             });
-            await completeFdDocumentUpload(societyId, created.id, target.documentId);
+            await completeMisDocumentUpload(societyId, created.id, target.documentId);
           }),
         );
       }
 
-      toast.success("Fixed deposit account created");
+      toast.success("MIS account created");
+      reset();
       onOpenChange(false);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Failed to create fixed deposit account"));
+      toast.error(getApiErrorMessage(error, "Failed to create MIS account"));
     }
   };
 
   const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files ?? []);
     if (!selected.length) return;
-    setDocuments((prev) => [
-      ...prev,
-      ...selected.map((file) => ({ file, displayName: file.name })),
-    ]);
+    setDocuments((prev) => [...prev, ...selected.map((file) => ({ file, displayName: file.name }))]);
     event.target.value = "";
   };
 
@@ -387,10 +391,9 @@ export const CreateFdAccountDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
         <DialogHeader>
-          <DialogTitle>Create FD Account</DialogTitle>
+          <DialogTitle>Create MIS Account</DialogTitle>
           <DialogDescription>
-            Customer, nominee, fixed deposit account, and initial transaction will be created
-            together.
+            Customer, nominee, MIS account, and initial deposit transaction will be created together.
           </DialogDescription>
         </DialogHeader>
 
@@ -400,9 +403,7 @@ export const CreateFdAccountDialog = ({
             <SearchableSingleSelectAsync
               value={watch("referrerMembershipId") || "none"}
               onChange={(value) =>
-                setValue("referrerMembershipId", value === "none" ? "" : value, {
-                  shouldValidate: true,
-                })
+                setValue("referrerMembershipId", value === "none" ? "" : value, { shouldValidate: true })
               }
               options={referrerOptions}
               placeholder="Select referrer member (optional)"
@@ -430,9 +431,6 @@ export const CreateFdAccountDialog = ({
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input {...register("customer.email")} />
-                {errors.customer?.email ? (
-                  <p className="text-sm text-destructive">{errors.customer.email.message}</p>
-                ) : null}
               </div>
               <div className="space-y-2">
                 <Label>Address</Label>
@@ -479,18 +477,14 @@ export const CreateFdAccountDialog = ({
                     <RequiredLabel>Name</RequiredLabel>
                     <Input {...register(`nominees.${index}.name`)} />
                     {errors.nominees?.[index]?.name ? (
-                      <p className="text-sm text-destructive">
-                        {errors.nominees[index]?.name?.message}
-                      </p>
+                      <p className="text-sm text-destructive">{errors.nominees[index]?.name?.message}</p>
                     ) : null}
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Phone</RequiredLabel>
                     <Input {...register(`nominees.${index}.phone`)} />
                     {errors.nominees?.[index]?.phone ? (
-                      <p className="text-sm text-destructive">
-                        {errors.nominees[index]?.phone?.message}
-                      </p>
+                      <p className="text-sm text-destructive">{errors.nominees[index]?.phone?.message}</p>
                     ) : null}
                   </div>
                   <div className="space-y-2">
@@ -517,11 +511,6 @@ export const CreateFdAccountDialog = ({
                     <div className="space-y-2">
                       <Label>Custom Relation</Label>
                       <Input {...register(`nominees.${index}.customRelation`)} />
-                      {errors.nominees?.[index]?.customRelation ? (
-                        <p className="text-sm text-destructive">
-                          {errors.nominees[index]?.customRelation?.message}
-                        </p>
-                      ) : null}
                     </div>
                   ) : null}
                   <div className="space-y-2">
@@ -532,9 +521,7 @@ export const CreateFdAccountDialog = ({
                     <Label>Aadhaar</Label>
                     <Input {...register(`nominees.${index}.aadhaar`)} />
                     {errors.nominees?.[index]?.aadhaar ? (
-                      <p className="text-sm text-destructive">
-                        {errors.nominees[index]?.aadhaar?.message}
-                      </p>
+                      <p className="text-sm text-destructive">{errors.nominees[index]?.aadhaar?.message}</p>
                     ) : null}
                   </div>
                   <div className="space-y-2">
@@ -548,9 +535,7 @@ export const CreateFdAccountDialog = ({
                       }}
                     />
                     {errors.nominees?.[index]?.pan ? (
-                      <p className="text-sm text-destructive">
-                        {errors.nominees[index]?.pan?.message}
-                      </p>
+                      <p className="text-sm text-destructive">{errors.nominees[index]?.pan?.message}</p>
                     ) : null}
                   </div>
                 </div>
@@ -560,15 +545,7 @@ export const CreateFdAccountDialog = ({
               type="button"
               variant="outline"
               onClick={() =>
-                append({
-                  name: "",
-                  phone: "",
-                  relation: "",
-                  customRelation: "",
-                  address: "",
-                  aadhaar: "",
-                  pan: "",
-                })
+                append({ name: "", phone: "", relation: "", customRelation: "", address: "", aadhaar: "", pan: "" })
               }
             >
               Add Nominee
@@ -576,15 +553,13 @@ export const CreateFdAccountDialog = ({
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">FD Details</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground">MIS Details</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <RequiredLabel>Project Type</RequiredLabel>
                 <Select
                   value={selectedProjectTypeId}
-                  onValueChange={(value) =>
-                    setValue("fd.projectTypeId", value, { shouldValidate: true })
-                  }
+                  onValueChange={(value) => setValue("mis.projectTypeId", value, { shouldValidate: true })}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select project type" />
@@ -597,38 +572,20 @@ export const CreateFdAccountDialog = ({
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.fd?.projectTypeId ? (
-                  <p className="text-sm text-destructive">{errors.fd.projectTypeId.message}</p>
+                {errors.mis?.projectTypeId ? (
+                  <p className="text-sm text-destructive">{errors.mis.projectTypeId.message}</p>
                 ) : null}
               </div>
-
               <div className="space-y-2">
                 <RequiredLabel>Deposit Amount</RequiredLabel>
-                <Input type="number" {...register("fd.depositAmount", { valueAsNumber: true })} />
-                {errors.fd?.depositAmount ? (
-                  <p className="text-sm text-destructive">{errors.fd.depositAmount.message}</p>
+                <Input type="number" step="0.01" {...register("mis.depositAmount", { valueAsNumber: true })} />
+                {errors.mis?.depositAmount ? (
+                  <p className="text-sm text-destructive">{errors.mis.depositAmount.message}</p>
                 ) : null}
               </div>
-
-              <div className="space-y-2">
-                <RequiredLabel>Initial Payment Amount</RequiredLabel>
-                <Input
-                  type="number"
-                  {...register("fd.initialPaymentAmount", { valueAsNumber: true })}
-                />
-                {errors.fd?.initialPaymentAmount ? (
-                  <p className="text-sm text-destructive">
-                    {errors.fd.initialPaymentAmount.message}
-                  </p>
-                ) : null}
-              </div>
-
               <div className="space-y-2">
                 <RequiredLabel>Start Date</RequiredLabel>
-                <Input type="date" {...register("fd.startDate")} />
-                {errors.fd?.startDate ? (
-                  <p className="text-sm text-destructive">{errors.fd.startDate.message}</p>
-                ) : null}
+                <Input type="date" {...register("mis.startDate")} />
               </div>
             </div>
           </div>
@@ -637,11 +594,18 @@ export const CreateFdAccountDialog = ({
             <h3 className="text-sm font-semibold text-muted-foreground">Payment Info</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
+                <RequiredLabel>Initial Payment Amount</RequiredLabel>
+                <Input type="number" step="0.01" {...register("payment.amount", { valueAsNumber: true })} />
+                {errors.payment?.amount ? (
+                  <p className="text-sm text-destructive">{errors.payment.amount.message}</p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
                 <RequiredLabel>Payment Method</RequiredLabel>
                 <Select
                   value={paymentMethod}
                   onValueChange={(value) =>
-                    setValue("payment.paymentMethod", value as PaymentMethod, {
+                    setValue("payment.paymentMethod", value as "UPI" | "CASH" | "CHEQUE", {
                       shouldValidate: true,
                     })
                   }
@@ -661,41 +625,23 @@ export const CreateFdAccountDialog = ({
                 <div className="space-y-2">
                   <Label>Transaction ID</Label>
                   <Input {...register("payment.transactionId")} />
-                  {errors.payment?.transactionId ? (
-                    <p className="text-sm text-destructive">
-                      {errors.payment.transactionId.message}
-                    </p>
-                  ) : null}
                 </div>
               )}
-
               {paymentMethod === "UPI" && (
                 <div className="space-y-2">
                   <Label>UPI ID</Label>
                   <Input {...register("payment.upiId")} />
-                  {errors.payment?.upiId ? (
-                    <p className="text-sm text-destructive">{errors.payment.upiId.message}</p>
-                  ) : null}
                 </div>
               )}
-
               {paymentMethod === "CHEQUE" && (
                 <>
                   <div className="space-y-2">
                     <Label>Cheque Number</Label>
                     <Input {...register("payment.chequeNumber")} />
-                    {errors.payment?.chequeNumber ? (
-                      <p className="text-sm text-destructive">
-                        {errors.payment.chequeNumber.message}
-                      </p>
-                    ) : null}
                   </div>
                   <div className="space-y-2">
                     <Label>Bank Name</Label>
                     <Input {...register("payment.bankName")} />
-                    {errors.payment?.bankName ? (
-                      <p className="text-sm text-destructive">{errors.payment.bankName.message}</p>
-                    ) : null}
                   </div>
                 </>
               )}
@@ -708,10 +654,7 @@ export const CreateFdAccountDialog = ({
             {documents.length > 0 ? (
               <div className="space-y-2">
                 {documents.map((document, index) => (
-                  <div
-                    key={`${document.file.name}-${index}`}
-                    className="rounded-md border p-2 space-y-2"
-                  >
+                  <div key={`${document.file.name}-${index}`} className="rounded-md border p-2 space-y-2">
                     <p className="text-xs text-muted-foreground">Original: {document.file.name}</p>
                     <div className="flex gap-2">
                       <Input
@@ -719,9 +662,7 @@ export const CreateFdAccountDialog = ({
                         onChange={(event) =>
                           setDocuments((prev) =>
                             prev.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? { ...item, displayName: event.target.value }
-                                : item,
+                              itemIndex === index ? { ...item, displayName: event.target.value } : item,
                             ),
                           )
                         }
@@ -729,9 +670,7 @@ export const CreateFdAccountDialog = ({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                          setDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))
-                        }
+                        onClick={() => setDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
                       >
                         Remove
                       </Button>
@@ -744,87 +683,37 @@ export const CreateFdAccountDialog = ({
 
           <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Selected Project Type
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Project Type</p>
               <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Name</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType?.name ?? "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Duration</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Minimum Amount</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType
-                      ? `Rs. ${selectedProjectTypeMinimumAmount.toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Maturity basis</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType?.maturityCalculationMethod === "MULTIPLE_OF_PRINCIPAL"
-                      ? `${selectedProjectType.maturityMultiple}× principal`
-                      : `${selectedProjectType?.maturityAmountPerHundred ?? "N/A"} per Rs.100`}
-                  </span>
-                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Name</span><span className="font-medium text-right">{selectedProjectType?.name ?? "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Duration</span><span className="font-medium text-right">{selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Minimum Amount</span><span className="font-medium text-right">{formatCurrency(selectedProjectTypeMinimumAmount)}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Interest Config</span><span className="font-medium text-right">{interestTypePreview}</span></div>
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Calculation Preview
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Calculation Preview</p>
               <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Deposit Amount</span>
-                  <span className="font-medium text-right">
-                    {depositAmount ? `Rs. ${Number(depositAmount).toFixed(2)}` : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Initial Paid</span>
-                  <span className="font-medium text-right">
-                    {initialPaymentAmount
-                      ? `Rs. ${Number(initialPaymentAmount).toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Pending Amount</span>
-                  <span className="font-medium text-right">
-                    {depositAmount && initialPaymentAmount
-                      ? `Rs. ${(Number(depositAmount) - Number(initialPaymentAmount)).toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Maturity Amount</span>
-                  <span className="font-semibold text-right">
-                    {maturityAmountPreview !== null
-                      ? `Rs. ${maturityAmountPreview.toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Estimated Gain</span>
-                  <span className="font-semibold text-right text-emerald-700">
-                    {maturityGainPreview !== null ? `Rs. ${maturityGainPreview.toFixed(2)}` : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Maturity Date</span>
-                  <span className="font-medium text-right">
-                    {maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}
-                  </span>
-                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Monthly Interest</span><span className="font-semibold text-right">{formatCurrency(monthlyInterestPreview)}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Maturity Date</span><span className="font-medium text-right">{maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Total Interest</span><span className="font-medium text-right">{formatCurrency(totalInterestPreview)}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Principal Return</span><span className="font-medium text-right">{formatCurrency(Number(depositAmount || 0))}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Total Return</span><span className="font-semibold text-right text-emerald-700">{formatCurrency(totalReturnPreview)}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Remaining Deposit</span><span className="font-medium text-right">{formatCurrency(Math.max(0, depositAmount - initialPaymentAmount))}</span></div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Future Interest Schedule</p>
+              <div className="max-h-28 overflow-y-auto rounded-md border bg-background px-3 py-2 text-xs">
+                {schedulePreview.length === 0 ? (
+                  <p className="text-muted-foreground">Select project type to preview schedule.</p>
+                ) : (
+                  schedulePreview.map((entry) => (
+                    <p key={entry.month}>
+                      Month {entry.month}: {formatCurrency(entry.amount)}
+                    </p>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -834,7 +723,7 @@ export const CreateFdAccountDialog = ({
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending || projectTypes.length === 0}>
-              Create FD Account
+              Create MIS Account
             </Button>
           </div>
         </form>

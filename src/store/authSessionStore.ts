@@ -16,12 +16,14 @@ interface AuthSessionState {
   isAuthenticated: boolean;
   hadSession: boolean;
   isHydrated: boolean;
+  hasRestoredSession: boolean;
   setAuthPayload: (payload: AuthResponse) => void;
   setMemberships: (memberships: MembershipSummary[]) => void;
   setSelectedMembership: (membership: MembershipSummary) => void;
   setResolvedSociety: (resolved: ResolveSocietyResponse) => void;
   setIsAuthenticated: (isAuthenticated: boolean) => void;
   setHydrated: (isHydrated: boolean) => void;
+  setHasRestoredSession: (hasRestoredSession: boolean) => void;
   clearSession: () => void;
 }
 
@@ -33,6 +35,7 @@ const initialState = {
   isAuthenticated: false,
   hadSession: false,
   isHydrated: false,
+  hasRestoredSession: false,
 };
 
 const upsertMembership = (
@@ -66,6 +69,7 @@ export const useAuthSessionStore = create<AuthSessionState>()(
             selectedMembership,
             isAuthenticated: true,
             hadSession: true,
+            hasRestoredSession: true,
           };
         }),
       setMemberships: (memberships) => set({ memberships }),
@@ -95,7 +99,8 @@ export const useAuthSessionStore = create<AuthSessionState>()(
       },
       setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setHydrated: (isHydrated) => set({ isHydrated }),
-      clearSession: () => set({ ...initialState, isHydrated: true }),
+      setHasRestoredSession: (hasRestoredSession) => set({ hasRestoredSession }),
+      clearSession: () => set({ ...initialState, isHydrated: true, hasRestoredSession: true }),
     }),
     {
       name: "auth-session-store",

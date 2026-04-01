@@ -15,6 +15,8 @@ import SocietySelectorPage from "@/pages/SocietySelectorPage";
 import RazorpayPendingPage from "@/pages/RazorpayPendingPage";
 import SubscriptionStatusPage from "@/pages/SubscriptionStatusPage";
 import FixedDepositsPage from "@/pages/FixedDepositsPage";
+import MisPage from "@/pages/MisPage";
+import RecurringDepositsPage from "@/pages/RecurringDepositsPage";
 
 const router = createBrowserRouter([
   {
@@ -30,7 +32,8 @@ const router = createBrowserRouter([
           { path: "profile", element: <UserProfilePage /> },
           { path: "billing", element: <SubscriptionStatusPage /> },
           { path: "fixed-deposits", element: <FixedDepositsPage /> },
-          { path: "dashboard/fixed-deposits", element: <FixedDepositsPage /> },
+          { path: "mis", element: <MisPage /> },
+          { path: "recurring-deposits", element: <RecurringDepositsPage /> },
         ],
       },
       {

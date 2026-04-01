@@ -3,9 +3,29 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Plus, SlidersHorizontal, X } from "luc
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -81,7 +101,16 @@ type SortField =
   | "start_date"
   | "maturity_date";
 type SortOrder = "asc" | "desc";
-type FdColumnKey = "id" | "customer" | "phone" | "plan" | "start_date" | "maturity_amount" | "maturity_date" | "status" | "actions";
+type FdColumnKey =
+  | "id"
+  | "customer"
+  | "phone"
+  | "plan"
+  | "start_date"
+  | "maturity_amount"
+  | "maturity_date"
+  | "status"
+  | "actions";
 
 const FD_COLUMN_VISIBILITY_STORAGE_KEY = "fixedDeposits.fdTable.visibleColumns.v1";
 const DEFAULT_VISIBLE_FD_COLUMNS: Record<FdColumnKey, boolean> = {
@@ -129,7 +158,16 @@ const STRING_OPERATORS: FilterOperator[] = [
   "ends_with",
   "in",
 ];
-const NUMBER_DATE_OPERATORS: FilterOperator[] = ["equals", "not_equals", "gt", "lt", "gte", "lte", "in", "between"];
+const NUMBER_DATE_OPERATORS: FilterOperator[] = [
+  "equals",
+  "not_equals",
+  "gt",
+  "lt",
+  "gte",
+  "lte",
+  "in",
+  "between",
+];
 
 const FD_FILTER_FIELDS: Array<{
   value: FilterFieldKey;
@@ -137,25 +175,40 @@ const FD_FILTER_FIELDS: Array<{
   type: FieldType;
   accessor: (fd: FixedDepositAccount) => string | number;
 }> = [
-    { value: "customer_name", label: "Customer Name", type: "string", accessor: (fd) => fd.customer.fullName },
-    { value: "phone", label: "Phone", type: "string", accessor: (fd) => fd.customer.phone },
-    { value: "plan", label: "Plan", type: "string", accessor: (fd) => fd.projectType.name },
-    { value: "status", label: "Status", type: "string", accessor: (fd) => fd.status },
-    { value: "principal_amount", label: "Principal Amount", type: "number", accessor: (fd) => Number(fd.principalAmount) },
-    { value: "maturity_amount", label: "Maturity Amount", type: "number", accessor: (fd) => Number(fd.maturityAmount) },
-    {
-      value: "maturity_date",
-      label: "Maturity Date",
-      type: "date",
-      accessor: (fd) => new Date(fd.maturityDate).getTime(),
-    },
-    {
-      value: "start_date",
-      label: "Start Date",
-      type: "date",
-      accessor: (fd) => new Date(fd.startDate).getTime(),
-    },
-  ];
+  {
+    value: "customer_name",
+    label: "Customer Name",
+    type: "string",
+    accessor: (fd) => fd.customer.fullName,
+  },
+  { value: "phone", label: "Phone", type: "string", accessor: (fd) => fd.customer.phone },
+  { value: "plan", label: "Plan", type: "string", accessor: (fd) => fd.projectType.name },
+  { value: "status", label: "Status", type: "string", accessor: (fd) => fd.status },
+  {
+    value: "principal_amount",
+    label: "Principal Amount",
+    type: "number",
+    accessor: (fd) => Number(fd.principalAmount),
+  },
+  {
+    value: "maturity_amount",
+    label: "Maturity Amount",
+    type: "number",
+    accessor: (fd) => Number(fd.maturityAmount),
+  },
+  {
+    value: "maturity_date",
+    label: "Maturity Date",
+    type: "date",
+    accessor: (fd) => new Date(fd.maturityDate).getTime(),
+  },
+  {
+    value: "start_date",
+    label: "Start Date",
+    type: "date",
+    accessor: (fd) => new Date(fd.startDate).getTime(),
+  },
+];
 
 const buildDefaultFilter = (): FilterRule => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -164,7 +217,8 @@ const buildDefaultFilter = (): FilterRule => ({
   value: "",
 });
 
-const getFieldMeta = (fieldKey: FilterFieldKey) => FD_FILTER_FIELDS.find((field) => field.value === fieldKey);
+const getFieldMeta = (fieldKey: FilterFieldKey) =>
+  FD_FILTER_FIELDS.find((field) => field.value === fieldKey);
 
 const getAllowedOperatorsForField = (fieldKey: FilterFieldKey): FilterOperator[] => {
   const fieldMeta = getFieldMeta(fieldKey);
@@ -229,7 +283,12 @@ const evaluateRule = (fd: FixedDepositAccount, rule: FilterRule): boolean => {
       if (parts.length !== 2) return false;
       const min = toComparableValue(parts[0], fieldType);
       const max = toComparableValue(parts[1], fieldType);
-      if (typeof min !== "number" || typeof max !== "number" || Number.isNaN(min) || Number.isNaN(max)) {
+      if (
+        typeof min !== "number" ||
+        typeof max !== "number" ||
+        Number.isNaN(min) ||
+        Number.isNaN(max)
+      ) {
         return false;
       }
       return left >= Math.min(min, max) && left <= Math.max(min, max);
@@ -291,16 +350,28 @@ const FixedDepositsPage = () => {
       const parsed = JSON.parse(raw) as Partial<Record<FdColumnKey, unknown>>;
       return {
         id: typeof parsed.id === "boolean" ? parsed.id : DEFAULT_VISIBLE_FD_COLUMNS.id,
-        customer: typeof parsed.customer === "boolean" ? parsed.customer : DEFAULT_VISIBLE_FD_COLUMNS.customer,
+        customer:
+          typeof parsed.customer === "boolean"
+            ? parsed.customer
+            : DEFAULT_VISIBLE_FD_COLUMNS.customer,
         phone: typeof parsed.phone === "boolean" ? parsed.phone : DEFAULT_VISIBLE_FD_COLUMNS.phone,
         plan: typeof parsed.plan === "boolean" ? parsed.plan : DEFAULT_VISIBLE_FD_COLUMNS.plan,
-        start_date: typeof parsed.start_date === "boolean" ? parsed.start_date : DEFAULT_VISIBLE_FD_COLUMNS.start_date,
+        start_date:
+          typeof parsed.start_date === "boolean"
+            ? parsed.start_date
+            : DEFAULT_VISIBLE_FD_COLUMNS.start_date,
         maturity_amount:
-          typeof parsed.maturity_amount === "boolean" ? parsed.maturity_amount : DEFAULT_VISIBLE_FD_COLUMNS.maturity_amount,
+          typeof parsed.maturity_amount === "boolean"
+            ? parsed.maturity_amount
+            : DEFAULT_VISIBLE_FD_COLUMNS.maturity_amount,
         maturity_date:
-          typeof parsed.maturity_date === "boolean" ? parsed.maturity_date : DEFAULT_VISIBLE_FD_COLUMNS.maturity_date,
-        status: typeof parsed.status === "boolean" ? parsed.status : DEFAULT_VISIBLE_FD_COLUMNS.status,
-        actions: typeof parsed.actions === "boolean" ? parsed.actions : DEFAULT_VISIBLE_FD_COLUMNS.actions,
+          typeof parsed.maturity_date === "boolean"
+            ? parsed.maturity_date
+            : DEFAULT_VISIBLE_FD_COLUMNS.maturity_date,
+        status:
+          typeof parsed.status === "boolean" ? parsed.status : DEFAULT_VISIBLE_FD_COLUMNS.status,
+        actions:
+          typeof parsed.actions === "boolean" ? parsed.actions : DEFAULT_VISIBLE_FD_COLUMNS.actions,
       };
     } catch {
       return { ...DEFAULT_VISIBLE_FD_COLUMNS };
@@ -309,7 +380,10 @@ const FixedDepositsPage = () => {
   const [showDeletedProjectTypes, setShowDeletedProjectTypes] = useState(false);
   const [showDeletedFdAccounts, setShowDeletedFdAccounts] = useState(false);
   const [fdToDelete, setFdToDelete] = useState<{ id: string; label: string } | null>(null);
-  const [projectTypeToDelete, setProjectTypeToDelete] = useState<{ id: string; label: string } | null>(null);
+  const [projectTypeToDelete, setProjectTypeToDelete] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
 
   const selectedMembership = useAuthSessionStore((state) => state.selectedMembership);
   const societyId = selectedMembership?.societyId ?? null;
@@ -327,14 +401,20 @@ const FixedDepositsPage = () => {
     societyId,
     showDeletedProjectTypes,
   );
-  const { data: fixedDeposits, isLoading: isFdLoading } = useFdAccountsQuery(societyId, {
-    sortBy: sortField,
-    sortOrder,
-  }, showDeletedFdAccounts, searchText);
+  const { data: fixedDeposits, isLoading: isFdLoading } = useFdAccountsQuery(
+    societyId,
+    {
+      sortBy: sortField,
+      sortOrder,
+    },
+    showDeletedFdAccounts,
+    searchText,
+  );
 
   const projectTypeRows = useMemo(() => projectTypes ?? [], [projectTypes]);
   const activeProjectTypes = useMemo(
-    () => projectTypeRows.filter((projectType) => !projectType.isArchived && !projectType.isDeleted),
+    () =>
+      projectTypeRows.filter((projectType) => !projectType.isArchived && !projectType.isDeleted),
     [projectTypeRows],
   );
   const fdRows = useMemo(() => fixedDeposits ?? [], [fixedDeposits]);
@@ -358,7 +438,7 @@ const FixedDepositsPage = () => {
     () =>
       fdRows.map((fd) => ({
         id: fd.id,
-        label: `${fd.customer.fullName} - ${fd.projectType.name} (${fd.customer.phone})`,
+        label: `${fd.customer.fullName} - ${fd.customer.phone} (${fd.id})`,
       })),
     [fdRows],
   );
@@ -373,7 +453,9 @@ const FixedDepositsPage = () => {
   }, [visibleFdColumns]);
 
   const toggleFdExpansion = (fdId: string) => {
-    setExpandedFdIds((prev) => (prev.includes(fdId) ? prev.filter((id) => id !== fdId) : [...prev, fdId]));
+    setExpandedFdIds((prev) =>
+      prev.includes(fdId) ? prev.filter((id) => id !== fdId) : [...prev, fdId],
+    );
   };
 
   const openAdvancedFilterDialog = () => {
@@ -383,7 +465,9 @@ const FixedDepositsPage = () => {
   };
 
   const updateDraftFilter = (id: string, patch: Partial<FilterRule>) => {
-    setDraftFilters((prev) => prev.map((filter) => (filter.id === id ? { ...filter, ...patch } : filter)));
+    setDraftFilters((prev) =>
+      prev.map((filter) => (filter.id === id ? { ...filter, ...patch } : filter)),
+    );
   };
 
   const handleDraftFieldChange = (id: string, field: FilterFieldKey) => {
@@ -463,9 +547,15 @@ const FixedDepositsPage = () => {
 
   const renderSortIcon = (field: SortField) => {
     if (sortField === field) {
-      return sortOrder === "asc" ? <ArrowUp className="ml-1 h-3.5 w-3.5" /> : <ArrowDown className="ml-1 h-3.5 w-3.5" />;
+      return sortOrder === "asc" ? (
+        <ArrowUp className="ml-1 h-3.5 w-3.5" />
+      ) : (
+        <ArrowDown className="ml-1 h-3.5 w-3.5" />
+      );
     }
-    return <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-70" />;
+    return (
+      <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-70" />
+    );
   };
 
   const handleColumnVisibilityChange = (column: FdColumnKey, checked: boolean) => {
@@ -483,7 +573,9 @@ const FixedDepositsPage = () => {
         <h1 className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
           Fixed Deposits
         </h1>
-        <p className="text-muted-foreground mt-2">Create fixed deposit plans and manage FD accounts.</p>
+        <p className="text-muted-foreground mt-2">
+          Create fixed deposit plans and manage FD accounts.
+        </p>
       </div>
 
       <section className="mt-8 space-y-2">
@@ -511,6 +603,7 @@ const FixedDepositsPage = () => {
               <TableRow className="bg-muted/50">
                 <TableHead>Name</TableHead>
                 <TableHead>Duration</TableHead>
+                <TableHead>Minimum Amount</TableHead>
                 <TableHead>Return Rate</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -519,13 +612,13 @@ const FixedDepositsPage = () => {
             <TableBody>
               {isProjectTypesLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Loading project types...
                   </TableCell>
                 </TableRow>
               ) : projectTypeRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No project types found.
                   </TableCell>
                 </TableRow>
@@ -534,7 +627,12 @@ const FixedDepositsPage = () => {
                   <TableRow key={projectType.id}>
                     <TableCell className="font-medium">{projectType.name}</TableCell>
                     <TableCell>{projectType.duration} months</TableCell>
-                    <TableCell>{projectType.maturityAmountPerHundred} per Rs.100</TableCell>
+                    <TableCell>{formatCurrency(projectType.minimumAmount)}</TableCell>
+                    <TableCell>
+                      {projectType.maturityCalculationMethod === "MULTIPLE_OF_PRINCIPAL"
+                        ? `${projectType.maturityMultiple}× principal`
+                        : `${projectType.maturityAmountPerHundred} per Rs.100`}
+                    </TableCell>
                     <TableCell>
                       {projectType.isDeleted ? (
                         <Badge variant="destructive">DELETED</Badge>
@@ -574,28 +672,6 @@ const FixedDepositsPage = () => {
       <section className="space-y-2 mt-18">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">FD Accounts</h2>
-          <div className="flex flex-wrap gap-2">
-            <Can action="fixed_deposit.create">
-              <Button
-                type="button"
-                className="bg-blue-600 text-white hover:bg-blue-700"
-                onClick={() => setIsCreateFdDialogOpen(true)}
-                disabled={activeProjectTypes.length === 0}
-              >
-                Create FD Account
-              </Button>
-            </Can>
-            <Can action="fixed_deposit.add_transaction">
-              <Button
-                type="button"
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
-                onClick={() => setIsAddTransactionDialogOpen(true)}
-                disabled={(fdRows?.length ?? 0) === 0}
-              >
-                Add Transaction
-              </Button>
-            </Can>
-          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -629,15 +705,18 @@ const FixedDepositsPage = () => {
                   key={column.key}
                   checked={visibleFdColumns[column.key]}
                   onSelect={(event) => event.preventDefault()}
-                  onCheckedChange={(checked) => handleColumnVisibilityChange(column.key, checked === true)}
+                  onCheckedChange={(checked) =>
+                    handleColumnVisibilityChange(column.key, checked === true)
+                  }
                 >
                   {column.label}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="w-full md:ml-auto md:w-[360px]">
+          <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 md:w-auto">
             <Input
+              className="w-full md:w-[360px]"
               value={searchText}
               onChange={(event) => {
                 setSearchText(event.target.value);
@@ -645,6 +724,26 @@ const FixedDepositsPage = () => {
               }}
               placeholder="Search by ID, name, phone, amount, date, maturity..."
             />
+            <Can action="fixed_deposit.create">
+              <Button
+                type="button"
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => setIsCreateFdDialogOpen(true)}
+                disabled={activeProjectTypes.length === 0}
+              >
+                Create FD Account
+              </Button>
+            </Can>
+            <Can action="fixed_deposit.add_transaction">
+              <Button
+                type="button"
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={() => setIsAddTransactionDialogOpen(true)}
+                disabled={(fdRows?.length ?? 0) === 0}
+              >
+                Add Transaction
+              </Button>
+            </Can>
           </div>
         </div>
         <div className="rounded-lg border overflow-auto max-h-[540px]">
@@ -747,25 +846,36 @@ const FixedDepositsPage = () => {
                     </button>
                   </TableHead>
                 ) : null}
-                {visibleFdColumns.actions ? <TableHead className="sticky top-0 z-10 bg-muted/90">Actions</TableHead> : null}
+                {visibleFdColumns.actions ? (
+                  <TableHead className="sticky top-0 z-10 bg-muted/90">Actions</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isFdLoading ? (
                 <TableRow>
-                  <TableCell colSpan={visibleFdColumnCount} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={visibleFdColumnCount}
+                    className="text-center text-muted-foreground"
+                  >
                     Loading FD accounts...
                   </TableCell>
                 </TableRow>
               ) : fdRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={visibleFdColumnCount} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={visibleFdColumnCount}
+                    className="text-center text-muted-foreground"
+                  >
                     No fixed deposit accounts found.
                   </TableCell>
                 </TableRow>
               ) : filteredFdRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={visibleFdColumnCount} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={visibleFdColumnCount}
+                    className="text-center text-muted-foreground"
+                  >
                     No FD accounts match the current filters/search.
                   </TableCell>
                 </TableRow>
@@ -790,12 +900,20 @@ const FixedDepositsPage = () => {
                           </button>
                         </TableCell>
                       ) : null}
-                      {visibleFdColumns.customer ? <TableCell className="font-medium">{fd.customer.fullName}</TableCell> : null}
+                      {visibleFdColumns.customer ? (
+                        <TableCell className="font-medium">{fd.customer.fullName}</TableCell>
+                      ) : null}
                       {visibleFdColumns.phone ? <TableCell>{fd.customer.phone}</TableCell> : null}
                       {visibleFdColumns.plan ? <TableCell>{fd.projectType.name}</TableCell> : null}
-                      {visibleFdColumns.start_date ? <TableCell>{formatDate(fd.startDate)}</TableCell> : null}
-                      {visibleFdColumns.maturity_amount ? <TableCell>{formatCurrency(fd.maturityAmount)}</TableCell> : null}
-                      {visibleFdColumns.maturity_date ? <TableCell>{formatDate(fd.maturityDate)}</TableCell> : null}
+                      {visibleFdColumns.start_date ? (
+                        <TableCell>{formatDate(fd.startDate)}</TableCell>
+                      ) : null}
+                      {visibleFdColumns.maturity_amount ? (
+                        <TableCell>{formatCurrency(fd.maturityAmount)}</TableCell>
+                      ) : null}
+                      {visibleFdColumns.maturity_date ? (
+                        <TableCell>{formatDate(fd.maturityDate)}</TableCell>
+                      ) : null}
                       {visibleFdColumns.status ? (
                         <TableCell>
                           {fd.isDeleted ? (
@@ -804,7 +922,9 @@ const FixedDepositsPage = () => {
                             <div onClick={(event) => event.stopPropagation()}>
                               <Select
                                 value={fd.status}
-                                onValueChange={(value) => handleStatusChange(fd.id, value as ServiceStatus)}
+                                onValueChange={(value) =>
+                                  handleStatusChange(fd.id, value as ServiceStatus)
+                                }
                               >
                                 <SelectTrigger className="h-8 w-[140px]">
                                   <SelectValue />
@@ -817,7 +937,9 @@ const FixedDepositsPage = () => {
                               </Select>
                             </div>
                           ) : (
-                            <Badge variant={fd.status === "ACTIVE" ? "default" : "secondary"}>{fd.status}</Badge>
+                            <Badge variant={fd.status === "ACTIVE" ? "default" : "secondary"}>
+                              {fd.status}
+                            </Badge>
                           )}
                         </TableCell>
                       ) : null}
@@ -862,7 +984,10 @@ const FixedDepositsPage = () => {
                               <TableBody>
                                 {(fd.transactions ?? []).length === 0 ? (
                                   <TableRow>
-                                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                    <TableCell
+                                      colSpan={5}
+                                      className="text-center text-muted-foreground"
+                                    >
                                       No transactions recorded.
                                     </TableCell>
                                   </TableRow>
@@ -871,13 +996,21 @@ const FixedDepositsPage = () => {
                                     <TableRow key={transaction.id} className="text-sm">
                                       <TableCell>{formatDate(transaction.createdAt)}</TableCell>
                                       <TableCell>
-                                        <Badge variant={transaction.type === "CREDIT" ? "default" : "secondary"}>
+                                        <Badge
+                                          variant={
+                                            transaction.type === "CREDIT" ? "default" : "secondary"
+                                          }
+                                        >
                                           {transaction.type}
                                         </Badge>
                                       </TableCell>
-                                      <TableCell className="font-medium">{formatCurrency(transaction.amount)}</TableCell>
+                                      <TableCell className="font-medium">
+                                        {formatCurrency(transaction.amount)}
+                                      </TableCell>
                                       <TableCell>
-                                        <Badge variant="outline">{transaction.paymentMethod ?? "N/A"}</Badge>
+                                        <Badge variant="outline">
+                                          {transaction.paymentMethod ?? "N/A"}
+                                        </Badge>
                                       </TableCell>
                                       <TableCell className="text-muted-foreground">
                                         {transaction.transactionId ?? "N/A"}
@@ -986,13 +1119,17 @@ const FixedDepositsPage = () => {
         />
       ) : null}
 
-      <Dialog open={Boolean(projectTypeToDelete)} onOpenChange={(isOpen) => !isOpen && setProjectTypeToDelete(null)}>
+      <Dialog
+        open={Boolean(projectTypeToDelete)}
+        onOpenChange={(isOpen) => !isOpen && setProjectTypeToDelete(null)}
+      >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Delete Project Type</DialogTitle>
             <DialogDescription>
-              This will soft delete the project type. It will not be available for new FD accounts and will not be
-              considered in future active selections/calculations, while old linked records remain for history.
+              This will soft delete the project type. It will not be available for new FD accounts
+              and will not be considered in future active selections/calculations, while old linked
+              records remain for history.
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
@@ -1019,8 +1156,9 @@ const FixedDepositsPage = () => {
           <DialogHeader>
             <DialogTitle>Delete FD Account</DialogTitle>
             <DialogDescription>
-              This will soft delete the FD account. It will be hidden from active lists and excluded from normal
-              calculations, but can still be viewed later with the "Show Deleted" option.
+              This will soft delete the FD account. It will be hidden from active lists and excluded
+              from normal calculations, but can still be viewed later with the "Show Deleted"
+              option.
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
@@ -1046,13 +1184,18 @@ const FixedDepositsPage = () => {
         <DialogContent className="max-w-full sm:max-w-2lg md:max-w-3xl lg:max-w-4xl ">
           <DialogHeader>
             <DialogTitle>Advanced Filters</DialogTitle>
-            <DialogDescription>Create custom filter combinations to find exactly what you need</DialogDescription>
+            <DialogDescription>
+              Create custom filter combinations to find exactly what you need
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-lg bg-muted/40 p-3">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-medium">Match Logic:</span>
-                <Select value={draftFilterLogic} onValueChange={(value) => setDraftFilterLogic(value as FilterLogic)}>
+                <Select
+                  value={draftFilterLogic}
+                  onValueChange={(value) => setDraftFilterLogic(value as FilterLogic)}
+                >
                   <SelectTrigger className="w-[220px]">
                     <SelectValue />
                   </SelectTrigger>
@@ -1075,7 +1218,9 @@ const FixedDepositsPage = () => {
                   <div key={filter.id} className="grid gap-2 md:grid-cols-[1fr_1fr_2fr_auto]">
                     <Select
                       value={filter.field}
-                      onValueChange={(value) => handleDraftFieldChange(filter.id, value as FilterFieldKey)}
+                      onValueChange={(value) =>
+                        handleDraftFieldChange(filter.id, value as FilterFieldKey)
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -1113,15 +1258,22 @@ const FixedDepositsPage = () => {
                         return (
                           <Input
                             value={filter.value}
-                            onChange={(event) => updateDraftFilter(filter.id, { value: event.target.value })}
+                            onChange={(event) =>
+                              updateDraftFilter(filter.id, { value: event.target.value })
+                            }
                             placeholder='Value (use "a,b" for between/in)'
                           />
                         );
                       }
 
-                      const [firstBetween = "", secondBetween = ""] = filter.value.split(",").map((part) => part.trim());
+                      const [firstBetween = "", secondBetween = ""] = filter.value
+                        .split(",")
+                        .map((part) => part.trim());
 
-                      if (filter.field === "plan" && (filter.operator === "equals" || filter.operator === "not_equals")) {
+                      if (
+                        filter.field === "plan" &&
+                        (filter.operator === "equals" || filter.operator === "not_equals")
+                      ) {
                         return (
                           <Select
                             value={filter.value}
@@ -1170,7 +1322,9 @@ const FixedDepositsPage = () => {
                           return (
                             <Input
                               value={filter.value}
-                              onChange={(event) => updateDraftFilter(filter.id, { value: event.target.value })}
+                              onChange={(event) =>
+                                updateDraftFilter(filter.id, { value: event.target.value })
+                              }
                               placeholder="YYYY-MM-DD,YYYY-MM-DD"
                             />
                           );
@@ -1179,7 +1333,9 @@ const FixedDepositsPage = () => {
                           <Input
                             type="date"
                             value={filter.value}
-                            onChange={(event) => updateDraftFilter(filter.id, { value: event.target.value })}
+                            onChange={(event) =>
+                              updateDraftFilter(filter.id, { value: event.target.value })
+                            }
                           />
                         );
                       }
@@ -1215,8 +1371,12 @@ const FixedDepositsPage = () => {
                           <Input
                             type={filter.operator === "in" ? "text" : "number"}
                             value={filter.value}
-                            onChange={(event) => updateDraftFilter(filter.id, { value: event.target.value })}
-                            placeholder={filter.operator === "in" ? "e.g. 10000,25000,50000" : "Enter value"}
+                            onChange={(event) =>
+                              updateDraftFilter(filter.id, { value: event.target.value })
+                            }
+                            placeholder={
+                              filter.operator === "in" ? "e.g. 10000,25000,50000" : "Enter value"
+                            }
                           />
                         );
                       }
@@ -1224,12 +1384,21 @@ const FixedDepositsPage = () => {
                       return (
                         <Input
                           value={filter.value}
-                          onChange={(event) => updateDraftFilter(filter.id, { value: event.target.value })}
-                          placeholder={filter.operator === "in" ? "e.g. active,completed" : "Enter value"}
+                          onChange={(event) =>
+                            updateDraftFilter(filter.id, { value: event.target.value })
+                          }
+                          placeholder={
+                            filter.operator === "in" ? "e.g. active,completed" : "Enter value"
+                          }
                         />
                       );
                     })()}
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeDraftFilter(filter.id)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeDraftFilter(filter.id)}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1247,7 +1416,11 @@ const FixedDepositsPage = () => {
               Clear All
             </Button>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsAdvancedFilterOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAdvancedFilterOpen(false)}
+              >
                 Cancel
               </Button>
               <Button type="button" onClick={applyDraftFilters}>

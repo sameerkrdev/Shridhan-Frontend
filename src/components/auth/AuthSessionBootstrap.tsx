@@ -6,11 +6,14 @@ const AuthSessionBootstrap = () => {
   const hasRequestedRefresh = useRef(false);
   const isHydrated = useAuthSessionStore((state) => state.isHydrated);
   const hadSession = useAuthSessionStore((state) => state.hadSession);
+  const hasRestoredSession = useAuthSessionStore((state) => state.hasRestoredSession);
   const setAuthPayload = useAuthSessionStore((state) => state.setAuthPayload);
   const clearSession = useAuthSessionStore((state) => state.clearSession);
+  const setHasRestoredSession = useAuthSessionStore((state) => state.setHasRestoredSession);
 
   useEffect(() => {
     if (!isHydrated || hasRequestedRefresh.current) return;
+    if (hasRestoredSession) return;
     if (!hadSession) return;
 
     hasRequestedRefresh.current = true;
@@ -20,8 +23,11 @@ const AuthSessionBootstrap = () => {
       })
       .catch(() => {
         clearSession();
+      })
+      .finally(() => {
+        setHasRestoredSession(true);
       });
-  }, [clearSession, hadSession, isHydrated, setAuthPayload]);
+  }, [clearSession, hadSession, hasRestoredSession, isHydrated, setAuthPayload, setHasRestoredSession]);
 
   return null;
 };

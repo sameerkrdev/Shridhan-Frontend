@@ -5,8 +5,12 @@ import FullPageLoader from "@/components/ui/full-page-loader";
 const UnauthorizedLayout = () => {
   const isHydrated = useAuthSessionStore((state) => state.isHydrated);
   const isAuthenticated = useAuthSessionStore((state) => state.isAuthenticated);
+  const hadSession = useAuthSessionStore((state) => state.hadSession);
+  const hasRestoredSession = useAuthSessionStore((state) => state.hasRestoredSession);
 
-  if (!isHydrated) {
+  const isSessionRestorePending = hadSession && !hasRestoredSession;
+
+  if (!isHydrated || isSessionRestorePending) {
     return <FullPageLoader />;
   }
 

@@ -13,6 +13,7 @@ import {
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDate } from "@/lib/dateFormat";
+import FullPageLoader from "@/components/ui/full-page-loader";
 
 const toReadableLabel = (value: string) =>
   value
@@ -103,6 +104,10 @@ const SocietySelectorPage = () => {
       toast.error(getApiErrorMessage(error, "Unable to resolve selected society"));
     }
   };
+
+  if (resolveSocietyMutation.isPending) {
+    return <FullPageLoader />;
+  }
 
   return (
     <div className="min-h-svh bg-background p-6 md:p-10">
