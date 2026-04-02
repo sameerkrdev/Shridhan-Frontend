@@ -21,15 +21,19 @@ import {
 } from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
-import type { PaymentMethod, RdProjectType } from "@/lib/rdApi";
-import { useCreateRdAccountMutation, useRdReferrerMembersQuery } from "@/hooks/useRdApi";
+import type { RdDetail, RdProjectType } from "@/lib/rdApi";
+import {
+  useCreateRdAccountMutation,
+  useRdReferrerMembersQuery,
+  useUpdateRdAccountMutation,
+} from "@/hooks/useRdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDate } from "@/lib/dateFormat";
 
 const schema = z
   .object({
-    referrerMembershipId: z.string().min(1, "Referrer member is required"),
+    referrerMembershipId: z.string().optional(),
     customer: z.object({
       fullName: z.string().trim().min(2, "Full name is required").max(150),
       phone: z.string().regex(/^[6-9]\d{9}$/, "Phone must be a valid 10-digit Indian number"),
@@ -74,57 +78,9 @@ const schema = z
       projectTypeId: z.string().min(1, "Project type is required"),
       monthlyAmount: z.number().min(1, "Monthly amount must be greater than 0"),
       startDate: z.string().min(1, "Start date is required"),
-      initialPaymentAmount: z.number().min(0, "Initial payment cannot be negative"),
-    }),
-    payment: z.object({
-      paymentMethod: z.enum(["UPI", "CASH", "CHEQUE"]),
-      transactionId: z.string().optional(),
-      upiId: z
-        .string()
-        .regex(/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z]{2,}$/, "UPI ID is invalid")
-        .optional()
-        .or(z.literal("")),
-      chequeNumber: z.string().optional(),
-      bankName: z.string().optional(),
     }),
   })
   .superRefine((payload, ctx) => {
-    if (payload.rd.initialPaymentAmount > 0) {
-      if (payload.payment.paymentMethod === "UPI") {
-        if (!payload.payment.upiId) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["payment", "upiId"],
-            message: "UPI ID is required for UPI payment",
-          });
-        }
-        if (!payload.payment.transactionId) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["payment", "transactionId"],
-            message: "Transaction ID is required for UPI payment",
-          });
-        }
-      }
-
-      if (payload.payment.paymentMethod === "CHEQUE") {
-        if (!payload.payment.chequeNumber?.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["payment", "chequeNumber"],
-            message: "Cheque number is required for cheque payment",
-          });
-        }
-        if (!payload.payment.bankName?.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["payment", "bankName"],
-            message: "Bank name is required for cheque payment",
-          });
-        }
-      }
-    }
-
     payload.nominees.forEach((nominee, index) => {
       if (!nominee.relation) {
         ctx.addIssue({
@@ -159,6 +115,9 @@ interface CreateRdAccountDialogProps {
   onOpenChange: (open: boolean) => void;
   societyId: string;
   projectTypes: RdProjectType[];
+  mode?: "create" | "edit";
+  initialData?: RdDetail | null;
+  onSaved?: () => void;
 }
 
 const getMaturityDate = (startDate: string, durationMonths: number) => {
@@ -188,8 +147,12 @@ export const CreateRdAccountDialog = ({
   onOpenChange,
   societyId,
   projectTypes,
+  mode = "create",
+  initialData = null,
+  onSaved,
 }: CreateRdAccountDialogProps) => {
   const mutation = useCreateRdAccountMutation(societyId);
+  const updateMutation = useUpdateRdAccountMutation(societyId, initialData?.id ?? "");
   const { data: referrerMembers } = useRdReferrerMembersQuery(societyId);
   const [documents, setDocuments] = useState<Array<{ file: File; displayName: string }>>([]);
 
@@ -230,14 +193,6 @@ export const CreateRdAccountDialog = ({
         projectTypeId: "",
         monthlyAmount: undefined as unknown as number,
         startDate: "",
-        initialPaymentAmount: 0,
-      },
-      payment: {
-        paymentMethod: "CASH",
-        transactionId: "",
-        upiId: "",
-        chequeNumber: "",
-        bankName: "",
       },
     },
   });
@@ -251,14 +206,40 @@ export const CreateRdAccountDialog = ({
     if (!open) {
       reset();
       setDocuments([]);
+      return;
     }
-  }, [open, reset]);
+    if (mode === "edit" && initialData) {
+      reset({
+        referrerMembershipId: "",
+        customer: {
+          fullName: initialData.customer.fullName ?? "",
+          phone: initialData.customer.phone ?? "",
+          email: initialData.customer.email ?? "",
+          address: initialData.customer.address ?? "",
+          aadhaar: initialData.customer.aadhaar ?? "",
+          pan: initialData.customer.pan ?? "",
+        },
+        nominees: initialData.customer.nominees.map((nominee) => ({
+          name: nominee.name ?? "",
+          phone: nominee.phone ?? "",
+          relation: nominee.relation ?? "",
+          customRelation: "",
+          address: nominee.address ?? "",
+          aadhaar: nominee.aadhaar ?? "",
+          pan: nominee.pan ?? "",
+        })),
+        rd: {
+          projectTypeId: initialData.projectType.id,
+          monthlyAmount: Number(initialData.monthlyAmount),
+          startDate: initialData.startDate.slice(0, 10),
+        },
+      });
+    }
+  }, [initialData, mode, open, reset]);
 
   const selectedProjectTypeId = watch("rd.projectTypeId");
   const monthlyAmount = watch("rd.monthlyAmount");
-  const initialPaymentAmount = watch("rd.initialPaymentAmount");
   const startDate = watch("rd.startDate");
-  const paymentMethod = watch("payment.paymentMethod");
   const nomineeValues = watch("nominees");
 
   const selectedProjectType = useMemo(
@@ -335,12 +316,24 @@ export const CreateRdAccountDialog = ({
         return;
       }
 
-      const totalPrincipal =
-        projectType && values.rd.monthlyAmount > 0
-          ? values.rd.monthlyAmount * projectType.duration
-          : 0;
-      if (totalPrincipal > 0 && values.rd.initialPaymentAmount > totalPrincipal) {
-        toast.error("Initial payment cannot be greater than total principal");
+      if (mode === "edit" && initialData) {
+        await updateMutation.mutateAsync({
+          customer: {
+            ...values.customer,
+            email: values.customer.email || undefined,
+          },
+          nominees: values.nominees.map((nominee) => {
+            const { customRelation, ...rest } = nominee;
+            return {
+              ...rest,
+              relation:
+                nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
+            };
+          }),
+        });
+        toast.success("RD account updated");
+        onSaved?.();
+        onOpenChange(false);
         return;
       }
 
@@ -363,20 +356,10 @@ export const CreateRdAccountDialog = ({
           monthlyAmount: values.rd.monthlyAmount,
           startDate: new Date(values.rd.startDate).toISOString(),
         },
-        payment:
-          values.rd.initialPaymentAmount > 0
-            ? {
-                amount: values.rd.initialPaymentAmount,
-                paymentMethod: values.payment.paymentMethod,
-                transactionId: values.payment.transactionId || undefined,
-                upiId: values.payment.upiId || undefined,
-                bankName: values.payment.bankName || undefined,
-                chequeNumber: values.payment.chequeNumber || undefined,
-              }
-            : undefined,
       });
 
       toast.success("RD account created");
+      onSaved?.();
       onOpenChange(false);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Failed to create RD account"));
@@ -397,19 +380,21 @@ export const CreateRdAccountDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
         <DialogHeader>
-          <DialogTitle>Create RD Account</DialogTitle>
+          <DialogTitle>{mode === "edit" ? "Edit RD Account" : "Create RD Account"}</DialogTitle>
           <DialogDescription>
-            Customer, nominee, recurring deposit account, and initial transaction will be created
-            together.
+            Customer, nominee, and recurring deposit account details will be created together.
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-2">
+          {mode === "create" ? (
+            <div className="space-y-2">
             <RequiredLabel>Referrer Member</RequiredLabel>
             <SearchableSingleSelectAsync
               value={watch("referrerMembershipId") || ""}
-              onChange={(value) => setValue("referrerMembershipId", value, { shouldValidate: true })}
+              onChange={(value) =>
+                setValue("referrerMembershipId", value, { shouldValidate: true })
+              }
               options={referrerOptions}
               placeholder="Select referrer member"
               className="w-full"
@@ -417,7 +402,8 @@ export const CreateRdAccountDialog = ({
             {errors.referrerMembershipId ? (
               <p className="text-sm text-destructive">{errors.referrerMembershipId.message}</p>
             ) : null}
-          </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Customer Info</h3>
@@ -469,7 +455,7 @@ export const CreateRdAccountDialog = ({
                 ) : null}
               </div>
             </div>
-          </div>
+            </div>
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Nominee Info</h3>
@@ -582,9 +568,10 @@ export const CreateRdAccountDialog = ({
             >
               Add Nominee
             </Button>
-          </div>
+            </div>
 
-          <div className="space-y-3">
+          {mode === "create" ? (
+            <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">RD Details</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
@@ -624,20 +611,6 @@ export const CreateRdAccountDialog = ({
               </div>
 
               <div className="space-y-2">
-                <RequiredLabel>Initial Payment Amount</RequiredLabel>
-                <Input
-                  type="number"
-                  placeholder="Enter initial payment"
-                  {...register("rd.initialPaymentAmount", { valueAsNumber: true })}
-                />
-                {errors.rd?.initialPaymentAmount ? (
-                  <p className="text-sm text-destructive">
-                    {errors.rd.initialPaymentAmount.message}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
                 <RequiredLabel>Start Date</RequiredLabel>
                 <Input type="date" placeholder="Select start date" {...register("rd.startDate")} />
                 {errors.rd?.startDate ? (
@@ -655,76 +628,8 @@ export const CreateRdAccountDialog = ({
                 {selectedProjectTypeMinimumMonthly.toFixed(2)}.
               </div>
             ) : null}
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">Payment Info</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <RequiredLabel>Payment Method</RequiredLabel>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(value) =>
-                    setValue("payment.paymentMethod", value as PaymentMethod, {
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASH">Cash</SelectItem>
-                    <SelectItem value="UPI">UPI</SelectItem>
-                    <SelectItem value="CHEQUE">Cheque</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {paymentMethod === "UPI" && (
-                <div className="space-y-2">
-                  <Label>Transaction ID</Label>
-                  <Input {...register("payment.transactionId")} />
-                  {errors.payment?.transactionId ? (
-                    <p className="text-sm text-destructive">
-                      {errors.payment.transactionId.message}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-
-              {paymentMethod === "UPI" && (
-                <div className="space-y-2">
-                  <Label>UPI ID</Label>
-                  <Input {...register("payment.upiId")} />
-                  {errors.payment?.upiId ? (
-                    <p className="text-sm text-destructive">{errors.payment.upiId.message}</p>
-                  ) : null}
-                </div>
-              )}
-
-              {paymentMethod === "CHEQUE" && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Cheque Number</Label>
-                    <Input {...register("payment.chequeNumber")} />
-                    {errors.payment?.chequeNumber ? (
-                      <p className="text-sm text-destructive">
-                        {errors.payment.chequeNumber.message}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Bank Name</Label>
-                    <Input {...register("payment.bankName")} />
-                    {errors.payment?.bankName ? (
-                      <p className="text-sm text-destructive">{errors.payment.bankName.message}</p>
-                    ) : null}
-                  </div>
-                </>
-              )}
             </div>
-          </div>
+          ) : null}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
@@ -766,7 +671,8 @@ export const CreateRdAccountDialog = ({
             ) : null}
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
+          {mode === "create" ? (
+            <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Selected Project Type
@@ -816,22 +722,6 @@ export const CreateRdAccountDialog = ({
                   </span>
                 </div>
                 <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Initial Paid</span>
-                  <span className="font-medium text-right">
-                    {initialPaymentAmount
-                      ? `Rs. ${Number(initialPaymentAmount).toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Pending Amount</span>
-                  <span className="font-medium text-right">
-                    {totalPrincipalPreview !== null && initialPaymentAmount
-                      ? `Rs. ${(totalPrincipalPreview - Number(initialPaymentAmount)).toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
                   <span className="text-muted-foreground">Maturity Amount</span>
                   <span className="font-semibold text-right">
                     {maturityAmountPreview !== null
@@ -853,14 +743,22 @@ export const CreateRdAccountDialog = ({
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending || projectTypes.length === 0}>
-              Create RD Account
+            <Button
+              type="submit"
+              disabled={
+                mutation.isPending ||
+                updateMutation.isPending ||
+                (mode === "create" && projectTypes.length === 0)
+              }
+            >
+              {mode === "edit" ? "Save Changes" : "Create RD Account"}
             </Button>
           </div>
         </form>

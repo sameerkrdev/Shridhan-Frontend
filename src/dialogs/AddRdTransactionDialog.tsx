@@ -2,11 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
 import { usePayRdForAnyMutation, useRdDetailQuery } from "@/hooks/useRdApi";
@@ -214,7 +226,9 @@ export const AddRdTransactionDialog = ({
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
-          <DialogDescription>Record a payment toward this recurring deposit account.</DialogDescription>
+          <DialogDescription>
+            Record a payment toward this recurring deposit account.
+          </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
@@ -223,7 +237,9 @@ export const AddRdTransactionDialog = ({
               <RequiredLabel>RD Account</RequiredLabel>
               <SearchableSingleSelectAsync
                 value={selectedRdId}
-                onChange={(value) => setValue("recurringDepositId", value, { shouldValidate: true })}
+                onChange={(value) =>
+                  setValue("recurringDepositId", value, { shouldValidate: true })
+                }
                 options={recurringDepositOptions.map((option) => ({
                   value: option.id,
                   label: option.label,
@@ -250,7 +266,9 @@ export const AddRdTransactionDialog = ({
                 placeholder="Enter amount"
                 {...register("amount", { valueAsNumber: true })}
               />
-              {errors.amount ? <p className="text-sm text-destructive">{errors.amount.message}</p> : null}
+              {errors.amount ? (
+                <p className="text-sm text-destructive">{errors.amount.message}</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -307,7 +325,9 @@ export const AddRdTransactionDialog = ({
             <div className="space-y-2">
               <Label>UPI ID</Label>
               <Input placeholder="Enter UPI ID" {...register("upiId")} />
-              {errors.upiId ? <p className="text-sm text-destructive">{errors.upiId.message}</p> : null}
+              {errors.upiId ? (
+                <p className="text-sm text-destructive">{errors.upiId.message}</p>
+              ) : null}
             </div>
           )}
 
@@ -316,7 +336,9 @@ export const AddRdTransactionDialog = ({
               <div className="space-y-2">
                 <Label>Bank Name</Label>
                 <Input placeholder="Enter bank name" {...register("bankName")} />
-                {errors.bankName ? <p className="text-sm text-destructive">{errors.bankName.message}</p> : null}
+                {errors.bankName ? (
+                  <p className="text-sm text-destructive">{errors.bankName.message}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label>Cheque Number</Label>

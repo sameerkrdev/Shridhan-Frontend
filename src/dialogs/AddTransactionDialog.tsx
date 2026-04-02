@@ -2,11 +2,23 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
 import { useAddTransactionForAnyFdMutation, useFdDetailQuery } from "@/hooks/useFixedDepositApi";
@@ -221,7 +233,9 @@ export const AddTransactionDialog = ({
               <RequiredLabel>Type</RequiredLabel>
               <Select
                 value={type}
-                onValueChange={(value) => setValue("type", value as TransactionType, { shouldValidate: true })}
+                onValueChange={(value) =>
+                  setValue("type", value as TransactionType, { shouldValidate: true })
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -245,7 +259,9 @@ export const AddTransactionDialog = ({
                 placeholder="Enter amount"
                 {...register("amount", { valueAsNumber: true })}
               />
-              {errors.amount ? <p className="text-sm text-destructive">{errors.amount.message}</p> : null}
+              {errors.amount ? (
+                <p className="text-sm text-destructive">{errors.amount.message}</p>
+              ) : null}
             </div>
           </div>
 
@@ -262,13 +278,19 @@ export const AddTransactionDialog = ({
                 <span className="font-semibold">{payoutRemaining?.toFixed(2) ?? "0.00"}</span>
               </p>
               {amount ? (
-                <p className="text-xs text-muted-foreground">Entered amount: {Number(amount).toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Entered amount: {Number(amount).toFixed(2)}
+                </p>
               ) : null}
               {isCreditBlocked ? (
-                <p className="text-xs text-amber-600">Credit is blocked because pending deposit is 0.</p>
+                <p className="text-xs text-amber-600">
+                  Credit is blocked because pending deposit is 0.
+                </p>
               ) : null}
               {isPayoutBlocked ? (
-                <p className="text-xs text-amber-600">Payout is blocked because remaining maturity is 0.</p>
+                <p className="text-xs text-amber-600">
+                  Payout is blocked because remaining maturity is 0.
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -306,7 +328,9 @@ export const AddTransactionDialog = ({
             <div className="space-y-2">
               <Label>UPI ID</Label>
               <Input {...register("upiId")} />
-              {errors.upiId ? <p className="text-sm text-destructive">{errors.upiId.message}</p> : null}
+              {errors.upiId ? (
+                <p className="text-sm text-destructive">{errors.upiId.message}</p>
+              ) : null}
             </div>
           )}
 
@@ -315,7 +339,9 @@ export const AddTransactionDialog = ({
               <div className="space-y-2">
                 <Label>Bank Name</Label>
                 <Input {...register("bankName")} />
-                {errors.bankName ? <p className="text-sm text-destructive">{errors.bankName.message}</p> : null}
+                {errors.bankName ? (
+                  <p className="text-sm text-destructive">{errors.bankName.message}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label>Cheque Number</Label>

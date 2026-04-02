@@ -10,6 +10,7 @@ import {
   listRdProjectTypes,
   payRd,
   previewRdPayment,
+  updateRdAccount,
   withdrawRd,
   type RdFineCalculationMethod,
 } from "@/lib/rdApi";
@@ -97,6 +98,18 @@ export const useCreateRdAccountMutation = (societyId: string) => {
   });
 };
 
+export const useUpdateRdAccountMutation = (societyId: string, rdId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof updateRdAccount>[2]) =>
+      updateRdAccount(societyId, rdId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["rd-detail", societyId, rdId] });
+      void queryClient.invalidateQueries({ queryKey: ["rd-accounts", societyId] });
+    },
+  });
+};
+
 export const useRdReferrerMembersQuery = (societyId: string | null) => {
   return useQuery({
     queryKey: ["rd-referrer-members", societyId],
@@ -112,8 +125,7 @@ export const usePreviewRdPaymentMutation = (societyId: string, rdId: string) => 
       months?: number[];
       skipFinePolicy?: "none" | "all" | "selected";
       skipFineMonths?: number[];
-    }) =>
-      previewRdPayment(societyId, rdId, payload),
+    }) => previewRdPayment(societyId, rdId, payload),
   });
 };
 

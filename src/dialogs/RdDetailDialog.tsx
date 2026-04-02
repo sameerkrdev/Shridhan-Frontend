@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRdDetailQuery } from "@/hooks/useRdApi";
+import { useRdProjectTypesQuery } from "@/hooks/useRdApi";
 import { formatDate } from "@/lib/dateFormat";
 import { RdPayDialog } from "@/dialogs/RdPayDialog";
 import { AddRdTransactionDialog } from "@/dialogs/AddRdTransactionDialog";
 import { RdWithdrawDialog } from "@/dialogs/RdWithdrawDialog";
+import { CreateRdAccountDialog } from "@/dialogs/CreateRdAccountDialog";
 import { hasPermission } from "@/components/Can";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 
@@ -24,22 +26,38 @@ interface RdDetailDialogProps {
   rdId: string | null;
 }
 
+const InfoItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="space-y-1">
+    <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+    <p className="text-sm font-medium wrap-break-word">{value}</p>
+  </div>
+);
+
 export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetailDialogProps) => {
   const [payOpen, setPayOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions ?? []);
   const canPay = hasPermission(permissions, "recurring_deposit.pay");
   const [addTxOpen, setAddTxOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const canWithdraw = hasPermission(permissions, "recurring_deposit.withdraw");
   const { data, isLoading } = useRdDetailQuery(societyId, rdId, open);
+  const { data: projectTypes = [] } = useRdProjectTypesQuery(societyId, { includeArchived: true });
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[1040px]">
           <DialogHeader>
-            <DialogTitle>RD Account Details</DialogTitle>
-            <DialogDescription>Installments, dues, and payment history.</DialogDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <DialogTitle>RD Account Details</DialogTitle>
+                <DialogDescription>Installments, dues, and payment history.</DialogDescription>
+              </div>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(true)}>
+                Edit Account
+              </Button>
+            </div>
           </DialogHeader>
 
           {isLoading ? (
@@ -47,7 +65,7 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
           ) : !data ? (
             <p className="text-sm text-muted-foreground">No data found.</p>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div className="rounded-xl border bg-muted/20 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -57,43 +75,42 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                   <Badge variant={data.status === "ACTIVE" ? "default" : "secondary"}>{data.status}</Badge>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Monthly amount</p>
-                    <p className="font-semibold">{formatCurrency(data.monthlyAmount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Maturity date</p>
-                    <p className="font-semibold">{formatDate(data.maturityDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Expected maturity payout</p>
-                    <p className="font-semibold">{formatCurrency(data.summary.expectedMaturityPayout)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total outstanding</p>
-                    <p className="font-semibold">{formatCurrency(data.summary.totalOutstanding)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Deferred fines</p>
-                    <p className="font-semibold">{formatCurrency(data.summary.totalDeferredFines)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Net maturity after deferred fines</p>
-                    <p className="font-semibold">{formatCurrency(data.summary.netMaturityPayoutAfterDeferredFines)}</p>
-                  </div>
+                  <InfoItem label="Project Type" value={data.projectType.name} />
+                  <InfoItem label="Monthly Amount" value={formatCurrency(data.monthlyAmount)} />
+                  <InfoItem
+                    label="Expected Maturity Payout"
+                    value={formatCurrency(data.summary.expectedMaturityPayout)}
+                  />
+                  <InfoItem label="Maturity Date" value={formatDate(data.maturityDate)} />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border p-4 space-y-2">
-                  <h3 className="font-semibold">Customer</h3>
-                  <p className="text-sm">{data.customer.fullName}</p>
-                  <p className="text-sm text-muted-foreground">{data.customer.phone}</p>
+                <div className="rounded-xl border p-4 space-y-4">
+                  <h3 className="font-semibold">Customer Details</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoItem label="Name" value={data.customer.fullName} />
+                    <InfoItem label="Phone" value={data.customer.phone} />
+                    <InfoItem label="Email" value={data.customer.email ?? "N/A"} />
+                    <InfoItem label="Aadhaar" value={data.customer.aadhaar ?? "N/A"} />
+                    <InfoItem label="PAN" value={data.customer.pan ?? "N/A"} />
+                    <InfoItem label="Address" value={data.customer.address ?? "N/A"} />
+                  </div>
                 </div>
-                <div className="rounded-xl border p-4 space-y-2">
-                  <h3 className="font-semibold">Plan</h3>
-                  <p className="text-sm">{data.projectType.name}</p>
-                  <p className="text-sm text-muted-foreground">{data.projectType.duration} months</p>
+                <div className="rounded-xl border p-4 space-y-4">
+                  <h3 className="font-semibold">Financial Summary</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoItem label="Total Outstanding" value={formatCurrency(data.summary.totalOutstanding)} />
+                    <InfoItem
+                      label="Total Principal Expected"
+                      value={formatCurrency(data.summary.totalPrincipalExpected)}
+                    />
+                    <InfoItem label="Deferred Fines" value={formatCurrency(data.summary.totalDeferredFines)} />
+                    <InfoItem
+                      label="Net Maturity After Fines"
+                      value={formatCurrency(data.summary.netMaturityPayoutAfterDeferredFines)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -116,7 +133,7 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
 
               <div className="space-y-2">
                 <h3 className="font-semibold">Installments</h3>
-                <div className="rounded-lg border overflow-auto max-h-[280px]">
+                <div className="rounded-md border overflow-auto max-h-[280px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -149,8 +166,27 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
               </div>
 
               <div className="space-y-2">
-                <h3 className="font-semibold">Transactions</h3>
-                <div className="rounded-lg border overflow-auto max-h-[220px]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">Transactions</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canPay && data.status === "ACTIVE" ? (
+                      <>
+                        <Button type="button" onClick={() => setPayOpen(true)}>
+                          Pay installment
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => setAddTxOpen(true)}>
+                          Add transaction
+                        </Button>
+                      </>
+                    ) : null}
+                    {canWithdraw && data.status === "ACTIVE" ? (
+                      <Button type="button" variant="secondary" onClick={() => setWithdrawOpen(true)}>
+                        Withdraw maturity
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="rounded-md border overflow-auto max-h-[220px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -176,23 +212,6 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {canPay && data.status === "ACTIVE" ? (
-                  <>
-                    <Button type="button" onClick={() => setPayOpen(true)}>
-                      Pay installment
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setAddTxOpen(true)}>
-                      Add transaction
-                    </Button>
-                  </>
-                ) : null}
-                {canWithdraw && data.status === "ACTIVE" ? (
-                  <Button type="button" variant="secondary" onClick={() => setWithdrawOpen(true)}>
-                    Withdraw maturity
-                  </Button>
-                ) : null}
-              </div>
             </div>
           )}
         </DialogContent>
@@ -214,6 +233,16 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
             rdId={rdId}
             summary={data?.summary}
           />
+          {data ? (
+            <CreateRdAccountDialog
+              open={editOpen}
+              onOpenChange={setEditOpen}
+              societyId={societyId}
+              projectTypes={projectTypes}
+              mode="edit"
+              initialData={data}
+            />
+          ) : null}
         </>
       ) : null}
     </>

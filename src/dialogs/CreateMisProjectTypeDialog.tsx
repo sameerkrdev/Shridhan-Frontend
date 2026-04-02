@@ -191,7 +191,13 @@ export const CreateMisProjectTypeDialog = ({
     });
 
     return { months, usedFallbackDuration, rows };
-  }, [calculationMethod, duration, minimumAmount, monthlyPayoutAmountPerHundred, annualInterestRate]);
+  }, [
+    calculationMethod,
+    duration,
+    minimumAmount,
+    monthlyPayoutAmountPerHundred,
+    annualInterestRate,
+  ]);
 
   useEffect(() => {
     if (!open) reset();
@@ -361,8 +367,8 @@ export const CreateMisProjectTypeDialog = ({
               <div className="space-y-0.5">
                 <p className="text-sm font-medium">Example accounts (preview)</p>
                 <p className="text-xs text-muted-foreground">
-                  Includes your minimum principal (if set) plus sample amounts. Total interest is monthly
-                  payout × duration; total payout is deposit + total interest.
+                  Includes your minimum principal (if set) plus sample amounts. Total interest is
+                  monthly payout × duration; total payout is deposit + total interest.
                   {examplePreview.usedFallbackDuration ? (
                     <>
                       {" "}

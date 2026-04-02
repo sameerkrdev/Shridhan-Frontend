@@ -11,6 +11,7 @@ import {
   listFdAccounts,
   listProjectTypes,
   requestFdDocumentUploadUrl,
+  updateFdAccount,
   updateFdStatus,
   updateProjectTypeStatus,
   type MaturityCalculationMethod,
@@ -89,6 +90,18 @@ export const useCreateFdAccountMutation = (societyId: string) => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
       void queryClient.invalidateQueries({ queryKey: ["fd-project-types", societyId] });
+    },
+  });
+};
+
+export const useUpdateFdAccountMutation = (societyId: string, fdId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof updateFdAccount>[2]) =>
+      updateFdAccount(societyId, fdId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["fd-detail", societyId, fdId] });
+      void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
     },
   });
 };

@@ -175,7 +175,11 @@ export const createRdProjectType = async (
     penaltyStartMonth?: number;
   },
 ) => {
-  const { data } = await apiClient.post<RdProjectType>("/recurring-deposits/project-types", payload, societyHeader(societyId));
+  const { data } = await apiClient.post<RdProjectType>(
+    "/recurring-deposits/project-types",
+    payload,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -183,13 +187,16 @@ export const listRdProjectTypes = async (
   societyId: string,
   options?: { includeDeleted?: boolean; includeArchived?: boolean },
 ) => {
-  const { data } = await apiClient.get<{ projectTypes: RdProjectType[] }>("/recurring-deposits/project-types", {
-    ...societyHeader(societyId),
-    params: {
-      includeDeleted: options?.includeDeleted ? "true" : "false",
-      includeArchived: options?.includeArchived ? "true" : "false",
+  const { data } = await apiClient.get<{ projectTypes: RdProjectType[] }>(
+    "/recurring-deposits/project-types",
+    {
+      ...societyHeader(societyId),
+      params: {
+        includeDeleted: options?.includeDeleted ? "true" : "false",
+        includeArchived: options?.includeArchived ? "true" : "false",
+      },
     },
-  });
+  );
   return data.projectTypes;
 };
 
@@ -232,6 +239,36 @@ export const createRdAccount = async (
   return data;
 };
 
+export const updateRdAccount = async (
+  societyId: string,
+  rdId: string,
+  payload: {
+    customer: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      address?: string;
+      aadhaar?: string;
+      pan?: string;
+    };
+    nominees: Array<{
+      name: string;
+      phone: string;
+      relation?: string;
+      address?: string;
+      aadhaar?: string;
+      pan?: string;
+    }>;
+  },
+) => {
+  const { data } = await apiClient.patch<RdDetail>(
+    `/recurring-deposits/${rdId}`,
+    payload,
+    societyHeader(societyId),
+  );
+  return data;
+};
+
 export const listRdReferrerMembers = async (societyId: string) => {
   const { data } = await apiClient.get<{ members: RdReferrerMember[] }>(
     "/recurring-deposits/referrers",
@@ -266,7 +303,10 @@ export const listRdAccounts = async (
 };
 
 export const getRdDetail = async (societyId: string, rdId: string) => {
-  const { data } = await apiClient.get<RdDetail>(`/recurring-deposits/${rdId}`, societyHeader(societyId));
+  const { data } = await apiClient.get<RdDetail>(
+    `/recurring-deposits/${rdId}`,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -303,7 +343,11 @@ export const payRd = async (
     chequeNumber?: string;
   },
 ) => {
-  const { data } = await apiClient.post(`/recurring-deposits/${rdId}/pay`, payload, societyHeader(societyId));
+  const { data } = await apiClient.post(
+    `/recurring-deposits/${rdId}/pay`,
+    payload,
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -319,7 +363,11 @@ export const withdrawRd = async (
     chequeNumber?: string;
   },
 ) => {
-  const { data } = await apiClient.post(`/recurring-deposits/${rdId}/withdraw`, payload ?? {}, societyHeader(societyId));
+  const { data } = await apiClient.post(
+    `/recurring-deposits/${rdId}/withdraw`,
+    payload ?? {},
+    societyHeader(societyId),
+  );
   return data;
 };
 
@@ -332,6 +380,9 @@ export const deleteRdProjectType = async (societyId: string, projectTypeId: stri
 };
 
 export const deleteRdAccount = async (societyId: string, rdId: string) => {
-  const { data } = await apiClient.delete<{ success: boolean }>(`/recurring-deposits/${rdId}`, societyHeader(societyId));
+  const { data } = await apiClient.delete<{ success: boolean }>(
+    `/recurring-deposits/${rdId}`,
+    societyHeader(societyId),
+  );
   return data;
 };

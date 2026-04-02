@@ -30,7 +30,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { computeFdMaturityAmountPreview, type MaturityCalculationMethod } from "@/lib/fixedDepositApi";
+import {
+  computeFdMaturityAmountPreview,
+  type MaturityCalculationMethod,
+} from "@/lib/fixedDepositApi";
 
 const PREVIEW_DEPOSIT_FALLBACK = 100_000;
 
@@ -50,7 +53,9 @@ const schema = z
       .min(1, "Minimum amount must be greater than 0")
       .max(100000000),
     maturityCalculationMethod: z.enum(["PER_RS_100", "MULTIPLE_OF_PRINCIPAL"]),
-    maturityValue: z.number({ message: "Maturity value is required" }).refine((v) => !Number.isNaN(v), "Enter a valid number"),
+    maturityValue: z
+      .number({ message: "Maturity value is required" })
+      .refine((v) => !Number.isNaN(v), "Enter a valid number"),
   })
   .superRefine((data, ctx) => {
     if (data.maturityCalculationMethod === "PER_RS_100") {
@@ -168,7 +173,10 @@ export const CreateProjectTypeDialog = ({
     maturityCalculationMethodSafe === "PER_RS_100"
       ? "Return per Rs.100"
       : "Maturity multiple (× principal)";
-  const valuePlaceholder = maturityCalculationMethodSafe === "PER_RS_100" ? "Enter return per Rs.100" : "Enter maturity multiple";
+  const valuePlaceholder =
+    maturityCalculationMethodSafe === "PER_RS_100"
+      ? "Enter return per Rs.100"
+      : "Enter maturity multiple";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -228,7 +236,9 @@ export const CreateProjectTypeDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="PER_RS_100">Return per Rs.100</SelectItem>
-                  <SelectItem value="MULTIPLE_OF_PRINCIPAL">Maturity multiple (× principal)</SelectItem>
+                  <SelectItem value="MULTIPLE_OF_PRINCIPAL">
+                    Maturity multiple (× principal)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -253,8 +263,9 @@ export const CreateProjectTypeDialog = ({
               <div className="space-y-0.5">
                 <p className="text-sm font-medium">Maturity preview (example deposits)</p>
                 <p className="text-xs text-muted-foreground">
-                  Uses your duration ({previewRows.months} months), minimum (if set), and maturity settings. Second row
-                  uses Rs. {PREVIEW_DEPOSIT_FALLBACK.toLocaleString("en-IN")} for comparison.
+                  Uses your duration ({previewRows.months} months), minimum (if set), and maturity
+                  settings. Second row uses Rs. {PREVIEW_DEPOSIT_FALLBACK.toLocaleString("en-IN")}{" "}
+                  for comparison.
                 </p>
               </div>
               <Table>
@@ -268,7 +279,9 @@ export const CreateProjectTypeDialog = ({
                   {previewRows.rows.map((row) => (
                     <TableRow key={row.deposit}>
                       <TableCell className="font-medium">{formatRs(row.deposit)}</TableCell>
-                      <TableCell className="text-right font-medium">{formatRs(row.maturity)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatRs(row.maturity)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

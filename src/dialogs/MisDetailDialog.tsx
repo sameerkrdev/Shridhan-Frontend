@@ -4,10 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMisDetailQuery } from "@/hooks/useMisApi";
+import { useMisProjectTypesQuery } from "@/hooks/useMisApi";
 import { formatDate } from "@/lib/dateFormat";
 import { AddMisDepositDialog } from "@/dialogs/AddMisDepositDialog";
 import { PayMisInterestDialog } from "@/dialogs/PayMisInterestDialog";
 import { ReturnMisPrincipalDialog } from "@/dialogs/ReturnMisPrincipalDialog";
+import { toast } from "sonner";
+import { CreateMisAccountDialog } from "@/dialogs/CreateMisAccountDialog";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -22,34 +25,50 @@ interface MisDetailDialogProps {
   misId: string | null;
 }
 
+const InfoItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="space-y-1">
+    <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+    <p className="text-sm font-medium wrap-break-word">{value}</p>
+  </div>
+);
+
 export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDetailDialogProps) => {
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isPayInterestOpen, setIsPayInterestOpen] = useState(false);
   const [isReturnPrincipalOpen, setIsReturnPrincipalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const { data, isLoading } = useMisDetailQuery(societyId, misId, open);
+  const { data: projectTypes = [] } = useMisProjectTypesQuery(societyId, { includeArchived: true });
   const remainingDeposit = Number(data?.summary.remainingDeposit ?? 0);
   const canAddDeposit = (data?.status === "PENDING_DEPOSIT" || data?.status === "ACTIVE") && remainingDeposit > 0;
   const canPayInterest = (data?.status === "ACTIVE" || data?.status === "COMPLETED") && (data?.summary.pendingMonths.length ?? 0) > 0;
   const canReturnPrincipal = useMemo(() => {
     if (!data) return false;
-    const matured = new Date(data.maturityDate).getTime() <= Date.now();
-    return data.status !== "CLOSED" && remainingDeposit <= 0 && data.summary.pendingMonths.length === 0 && matured;
+    return (
+      data.status !== "CLOSED" &&
+      remainingDeposit <= 0 &&
+      data.summary.pendingMonths.length === 0
+    );
   }, [data, remainingDeposit]);
-
-  const InfoItem = ({ label, value }: { label: string; value: string }) => (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-      <p className="text-sm font-medium wrap-break-word">{value}</p>
-    </div>
-  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[1040px]">
           <DialogHeader>
-            <DialogTitle>MIS Account Details</DialogTitle>
-            <DialogDescription>Customer, schedule, payout history, and maturity closure details.</DialogDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <DialogTitle>MIS Account Details</DialogTitle>
+                <DialogDescription>Customer, schedule, payout history, and maturity closure details.</DialogDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditOpen(true)}
+              >
+                Edit Account
+              </Button>
+            </div>
           </DialogHeader>
 
           {isLoading ? (
@@ -150,33 +169,31 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {canAddDeposit ? (
-                  <Button type="button" onClick={() => setIsDepositOpen(true)}>
-                    Add Deposit
-                  </Button>
-                ) : null}
-                {canPayInterest ? (
-                  <Button type="button" onClick={() => setIsPayInterestOpen(true)}>
-                    Pay Interest
-                  </Button>
-                ) : null}
-                {canReturnPrincipal ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setIsReturnPrincipalOpen(true)}
-                  >
-                    Return Principal
-                  </Button>
-                ) : null}
-                <Button type="button" variant="outline" disabled title="Edit API will be added next">
-                  Edit Account
-                </Button>
-              </div>
-
               <div className="space-y-2">
-                <h3 className="font-semibold">Transactions</h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">Transactions</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canAddDeposit ? (
+                      <Button type="button" onClick={() => setIsDepositOpen(true)}>
+                        Add Deposit
+                      </Button>
+                    ) : null}
+                    {canPayInterest ? (
+                      <Button type="button" onClick={() => setIsPayInterestOpen(true)}>
+                        Pay Interest
+                      </Button>
+                    ) : null}
+                    {canReturnPrincipal ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => setIsReturnPrincipalOpen(true)}
+                      >
+                        Return Principal
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
                 <div className="rounded-md border overflow-auto">
                   <Table>
                     <TableHeader>
@@ -242,6 +259,19 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
             misId={misId}
           />
         </>
+      ) : null}
+      {data ? (
+        <CreateMisAccountDialog
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          societyId={societyId}
+          projectTypes={projectTypes}
+          mode="edit"
+          initialData={data}
+          onSaved={() => {
+            toast.success("MIS account details refreshed");
+          }}
+        />
       ) : null}
     </>
   );

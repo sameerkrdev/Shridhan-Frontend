@@ -237,7 +237,6 @@ const MisPage = () => {
   const societyId = selectedMembership?.societyId ?? null;
 
   const canCreate = hasPermission(permissions, "mis.create");
-  const canRead = hasPermission(permissions, "mis.read");
   const canDeposit = hasPermission(permissions, "mis.deposit");
   const canPayInterest = hasPermission(permissions, "mis.pay_interest");
   const canReturnPrincipal = hasPermission(permissions, "mis.return_principal");
@@ -679,7 +678,17 @@ const MisPage = () => {
               ) : (
                 filteredAccountRows.map((account) => (
                   <TableRow key={account.id}>
-                    {visibleColumns.mis_id ? <TableCell className="font-medium">{account.id}</TableCell> : null}
+                    {visibleColumns.mis_id ? (
+                      <TableCell>
+                        <button
+                          type="button"
+                          className="text-primary underline-offset-4 hover:underline font-medium"
+                          onClick={() => setSelectedMisId(account.id)}
+                        >
+                          {account.id.slice(0, 8)}
+                        </button>
+                      </TableCell>
+                    ) : null}
                     {visibleColumns.customer ? <TableCell className="font-medium">{account.customer.fullName}</TableCell> : null}
                     {visibleColumns.phone ? <TableCell>{account.customer.phone}</TableCell> : null}
                     {visibleColumns.deposit_amount ? <TableCell>{formatCurrency(account.depositAmount)}</TableCell> : null}
@@ -697,11 +706,6 @@ const MisPage = () => {
                     {visibleColumns.actions ? (
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {canRead ? (
-                            <Button type="button" variant="outline" size="sm" onClick={() => setSelectedMisId(account.id)}>
-                              View
-                            </Button>
-                          ) : null}
                           {canRemoveMis ? (
                             <Button
                               type="button"

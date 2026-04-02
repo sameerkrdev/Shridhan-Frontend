@@ -2,10 +2,22 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { usePayMisInterestMutation } from "@/hooks/useMisApi";
 import { toast } from "sonner";
@@ -25,21 +37,39 @@ const schema = z
   })
   .superRefine((payload, ctx) => {
     if (payload.mode === "single" && payload.month === undefined) {
-      ctx.addIssue({ code: "custom", path: ["month"], message: "Month is required for single mode" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["month"],
+        message: "Month is required for single mode",
+      });
     }
     if (payload.mode === "multiple" && !payload.monthsCsv?.trim()) {
-      ctx.addIssue({ code: "custom", path: ["monthsCsv"], message: "Months are required for multiple mode" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["monthsCsv"],
+        message: "Months are required for multiple mode",
+      });
     }
     if (payload.paymentMethod === "UPI") {
-      if (!payload.upiId) ctx.addIssue({ code: "custom", path: ["upiId"], message: "UPI ID is required" });
+      if (!payload.upiId)
+        ctx.addIssue({ code: "custom", path: ["upiId"], message: "UPI ID is required" });
       if (!payload.transactionId) {
-        ctx.addIssue({ code: "custom", path: ["transactionId"], message: "Transaction ID is required" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["transactionId"],
+          message: "Transaction ID is required",
+        });
       }
     }
     if (payload.paymentMethod === "CHEQUE") {
-      if (!payload.bankName) ctx.addIssue({ code: "custom", path: ["bankName"], message: "Bank name is required" });
+      if (!payload.bankName)
+        ctx.addIssue({ code: "custom", path: ["bankName"], message: "Bank name is required" });
       if (!payload.chequeNumber) {
-        ctx.addIssue({ code: "custom", path: ["chequeNumber"], message: "Cheque number is required" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["chequeNumber"],
+          message: "Cheque number is required",
+        });
       }
     }
   });
@@ -92,7 +122,10 @@ export const PayMisInterestDialog = ({
   const paymentMethod = watch("paymentMethod");
   const monthsCsv = watch("monthsCsv") ?? "";
   const pendingMonthOptions = useMemo(() => {
-    const base = pendingMonths.length > 0 ? pendingMonths : Array.from({ length: duration }).map((_, i) => i + 1);
+    const base =
+      pendingMonths.length > 0
+        ? pendingMonths
+        : Array.from({ length: duration }).map((_, i) => i + 1);
     return base.filter((m) => m >= 1 && m <= duration);
   }, [duration, pendingMonths]);
 
@@ -106,14 +139,19 @@ export const PayMisInterestDialog = ({
 
   const onSubmit = async (values: FormData) => {
     try {
-      const selectedMonths = values.mode === "single" ? [values.month].filter((v): v is number => v !== undefined) : parsedMonths;
+      const selectedMonths =
+        values.mode === "single"
+          ? [values.month].filter((v): v is number => v !== undefined)
+          : parsedMonths;
       if (selectedMonths.length === 0) {
         toast.error("Please select at least one month");
         return;
       }
       const requiredAmount = monthlyInterest * selectedMonths.length;
       if (Math.abs(values.amount - requiredAmount) > 0.0001) {
-        toast.error(`Amount must be exactly Rs. ${requiredAmount.toFixed(2)} for selected month(s)`);
+        toast.error(
+          `Amount must be exactly Rs. ${requiredAmount.toFixed(2)} for selected month(s)`,
+        );
         return;
       }
       const payload =
@@ -151,12 +189,17 @@ export const PayMisInterestDialog = ({
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Pay Interest</DialogTitle>
-          <DialogDescription>Pay pending month interest. Fully paid months are disabled.</DialogDescription>
+          <DialogDescription>
+            Pay pending month interest. Fully paid months are disabled.
+          </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
             <RequiredLabel>Mode</RequiredLabel>
-            <Select value={mode} onValueChange={(value) => setValue("mode", value as "single" | "multiple")}>
+            <Select
+              value={mode}
+              onValueChange={(value) => setValue("mode", value as "single" | "multiple")}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -172,7 +215,9 @@ export const PayMisInterestDialog = ({
               <RequiredLabel>Month</RequiredLabel>
               <Select
                 value={watch("month") ? String(watch("month")) : ""}
-                onValueChange={(value) => setValue("month", Number(value), { shouldValidate: true })}
+                onValueChange={(value) =>
+                  setValue("month", Number(value), { shouldValidate: true })
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select pending month" />
@@ -189,7 +234,9 @@ export const PayMisInterestDialog = ({
                   })}
                 </SelectContent>
               </Select>
-              {errors.month ? <p className="text-sm text-destructive">{errors.month.message}</p> : null}
+              {errors.month ? (
+                <p className="text-sm text-destructive">{errors.month.message}</p>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-2">
@@ -200,7 +247,10 @@ export const PayMisInterestDialog = ({
                   const enabled = pendingMonthOptions.includes(month);
                   const checked = parsedMonths.includes(month);
                   return (
-                    <label key={month} className={`flex items-center gap-2 text-sm ${enabled ? "" : "text-muted-foreground"}`}>
+                    <label
+                      key={month}
+                      className={`flex items-center gap-2 text-sm ${enabled ? "" : "text-muted-foreground"}`}
+                    >
                       <input
                         type="checkbox"
                         disabled={!enabled}
@@ -209,7 +259,13 @@ export const PayMisInterestDialog = ({
                           const next = new Set(parsedMonths);
                           if (event.target.checked) next.add(month);
                           else next.delete(month);
-                          setValue("monthsCsv", Array.from(next).sort((a, b) => a - b).join(","), { shouldValidate: true });
+                          setValue(
+                            "monthsCsv",
+                            Array.from(next)
+                              .sort((a, b) => a - b)
+                              .join(","),
+                            { shouldValidate: true },
+                          );
                         }}
                       />
                       <span>Month {month}</span>
@@ -217,16 +273,21 @@ export const PayMisInterestDialog = ({
                   );
                 })}
               </div>
-              {errors.monthsCsv ? <p className="text-sm text-destructive">{errors.monthsCsv.message}</p> : null}
+              {errors.monthsCsv ? (
+                <p className="text-sm text-destructive">{errors.monthsCsv.message}</p>
+              ) : null}
             </div>
           )}
 
           <div className="space-y-2">
             <RequiredLabel>Amount</RequiredLabel>
             <Input type="number" step="0.01" {...register("amount", { valueAsNumber: true })} />
-            {errors.amount ? <p className="text-sm text-destructive">{errors.amount.message}</p> : null}
+            {errors.amount ? (
+              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">
-              Monthly interest: Rs. {monthlyInterest.toFixed(2)} | Selected months: {mode === "single" ? (watch("month") ?? 0) ? 1 : 0 : parsedMonths.length}
+              Monthly interest: Rs. {monthlyInterest.toFixed(2)} | Selected months:{" "}
+              {mode === "single" ? ((watch("month") ?? 0) ? 1 : 0) : parsedMonths.length}
             </p>
           </div>
 
@@ -234,7 +295,9 @@ export const PayMisInterestDialog = ({
             <RequiredLabel>Payment Method</RequiredLabel>
             <Select
               value={paymentMethod}
-              onValueChange={(value) => setValue("paymentMethod", value as "UPI" | "CASH" | "CHEQUE")}
+              onValueChange={(value) =>
+                setValue("paymentMethod", value as "UPI" | "CASH" | "CHEQUE")
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -252,12 +315,16 @@ export const PayMisInterestDialog = ({
               <div className="space-y-2">
                 <RequiredLabel>Transaction ID</RequiredLabel>
                 <Input {...register("transactionId")} />
-                {errors.transactionId ? <p className="text-sm text-destructive">{errors.transactionId.message}</p> : null}
+                {errors.transactionId ? (
+                  <p className="text-sm text-destructive">{errors.transactionId.message}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <RequiredLabel>UPI ID</RequiredLabel>
                 <Input {...register("upiId")} />
-                {errors.upiId ? <p className="text-sm text-destructive">{errors.upiId.message}</p> : null}
+                {errors.upiId ? (
+                  <p className="text-sm text-destructive">{errors.upiId.message}</p>
+                ) : null}
               </div>
             </>
           ) : null}
