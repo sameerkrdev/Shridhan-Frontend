@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -162,7 +162,6 @@ export const CreateRdAccountDialog = ({
     control,
     reset,
     setValue,
-    watch,
     setError,
     clearErrors,
     formState: { errors },
@@ -237,10 +236,11 @@ export const CreateRdAccountDialog = ({
     }
   }, [initialData, mode, open, reset]);
 
-  const selectedProjectTypeId = watch("rd.projectTypeId");
-  const monthlyAmount = watch("rd.monthlyAmount");
-  const startDate = watch("rd.startDate");
-  const nomineeValues = watch("nominees");
+  const selectedProjectTypeId = useWatch({ control, name: "rd.projectTypeId" });
+  const monthlyAmount = useWatch({ control, name: "rd.monthlyAmount" });
+  const startDate = useWatch({ control, name: "rd.startDate" });
+  const nomineeValues = useWatch({ control, name: "nominees" });
+  const referrerMembershipId = useWatch({ control, name: "referrerMembershipId" });
 
   const selectedProjectType = useMemo(
     () => projectTypes.find((item) => item.id === selectedProjectTypeId),
@@ -337,6 +337,14 @@ export const CreateRdAccountDialog = ({
         return;
       }
 
+      if (!values.referrerMembershipId?.trim()) {
+        setError("referrerMembershipId", {
+          type: "manual",
+          message: "Referrer member is required",
+        });
+        return;
+      }
+
       await mutation.mutateAsync({
         referrerMembershipId: values.referrerMembershipId,
         customer: {
@@ -391,7 +399,7 @@ export const CreateRdAccountDialog = ({
             <div className="space-y-2">
             <RequiredLabel>Referrer Member</RequiredLabel>
             <SearchableSingleSelectAsync
-              value={watch("referrerMembershipId") || ""}
+              value={referrerMembershipId || ""}
               onChange={(value) =>
                 setValue("referrerMembershipId", value, { shouldValidate: true })
               }
