@@ -51,6 +51,7 @@ export interface MisTransaction {
   chequeNumber?: string | null;
   bankName?: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface MisDocument {
@@ -160,7 +161,7 @@ export const listMisProjectTypes = async (
 export const createMisAccount = async (
   societyId: string,
   payload: {
-    referrerMembershipId?: string;
+    referrerMembershipId: string;
     customer: {
       fullName: string;
       phone: string;
@@ -199,6 +200,36 @@ export const createMisAccount = async (
   },
 ) => {
   const { data } = await apiClient.post<MisAccount>("/mis", payload, societyHeader(societyId));
+  return data;
+};
+
+export const updateMisAccount = async (
+  societyId: string,
+  misId: string,
+  payload: {
+    customer: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      address?: string;
+      aadhaar?: string;
+      pan?: string;
+    };
+    nominees: Array<{
+      name: string;
+      phone: string;
+      relation?: string;
+      address?: string;
+      aadhaar?: string;
+      pan?: string;
+    }>;
+    documents?: {
+      updates?: Array<{ id: string; displayName: string }>;
+      deleteIds?: string[];
+    };
+  },
+) => {
+  const { data } = await apiClient.patch<MisDetail>(`/mis/${misId}`, payload, societyHeader(societyId));
   return data;
 };
 

@@ -119,7 +119,7 @@ export interface CreateProjectTypePayload {
 }
 
 export interface CreateFdAccountPayload {
-  referrerMembershipId?: string;
+  referrerMembershipId: string;
   customer: {
     fullName: string;
     phone: string;
@@ -155,6 +155,15 @@ export interface CreateFdAccountPayload {
     contentType?: string;
     sizeBytes?: number;
   }>;
+}
+
+export interface UpdateFdAccountPayload {
+  customer: CreateFdAccountPayload["customer"];
+  nominees: CreateFdAccountPayload["nominees"];
+  documents?: {
+    updates?: Array<{ id: string; displayName: string }>;
+    deleteIds?: string[];
+  };
 }
 
 export interface AddTransactionPayload {
@@ -210,6 +219,19 @@ export const listProjectTypes = async (societyId: string, includeDeleted = false
 export const createFdAccount = async (societyId: string, payload: CreateFdAccountPayload) => {
   const { data } = await apiClient.post<FixedDepositAccount>(
     "/fixed-deposits",
+    payload,
+    societyHeader(societyId),
+  );
+  return data;
+};
+
+export const updateFdAccount = async (
+  societyId: string,
+  fdId: string,
+  payload: UpdateFdAccountPayload,
+) => {
+  const { data } = await apiClient.patch<FixedDepositDetail>(
+    `/fixed-deposits/${fdId}`,
     payload,
     societyHeader(societyId),
   );
@@ -350,7 +372,10 @@ export const completeFdDocumentUpload = async (
 export const computeFdMaturityAmountPreview = (
   depositAmount: number,
   projectType:
-    | Pick<FixedDepositProjectType, "maturityCalculationMethod" | "maturityAmountPerHundred" | "maturityMultiple">
+    | Pick<
+        FixedDepositProjectType,
+        "maturityCalculationMethod" | "maturityAmountPerHundred" | "maturityMultiple"
+      >
     | null
     | undefined,
 ): number | null => {

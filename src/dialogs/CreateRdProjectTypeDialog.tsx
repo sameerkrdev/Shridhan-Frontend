@@ -415,7 +415,9 @@ export const CreateRdProjectTypeDialog = ({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <RequiredLabel htmlFor="rd-pt-maturity-per-hundred">Maturity per hundred</RequiredLabel>
+              <RequiredLabel htmlFor="rd-pt-maturity-per-hundred">
+                Maturity per hundred
+              </RequiredLabel>
               <Input
                 id="rd-pt-maturity-per-hundred"
                 type="number"
@@ -439,7 +441,9 @@ export const CreateRdProjectTypeDialog = ({
                 {...register("fineCalculationMethod")}
               >
                 <option value="FIXED_PER_STREAK_UNIT">Fixed amount per missed-month step</option>
-                <option value="PROPORTIONAL_PER_HUNDRED">Proportional per ₹100 of monthly installment</option>
+                <option value="PROPORTIONAL_PER_HUNDRED">
+                  Proportional per ₹100 of monthly installment
+                </option>
               </select>
               <p className="text-xs text-muted-foreground">
                 Within each consecutive overdue run, the oldest unpaid installment gets the highest
@@ -448,7 +452,9 @@ export const CreateRdProjectTypeDialog = ({
             </div>
             {fineCalculationMethod === "FIXED_PER_STREAK_UNIT" ? (
               <div className="space-y-2 sm:col-span-2">
-                <RequiredLabel htmlFor="rd-pt-fixed-fine">Fixed overdue fine (per missed-month unit)</RequiredLabel>
+                <RequiredLabel htmlFor="rd-pt-fixed-fine">
+                  Fixed overdue fine (per missed-month unit)
+                </RequiredLabel>
                 <Input
                   id="rd-pt-fixed-fine"
                   type="number"
@@ -457,17 +463,21 @@ export const CreateRdProjectTypeDialog = ({
                   {...register("fixedOverdueFineAmount", { setValueAs: numberFromInput })}
                 />
                 {errors.fixedOverdueFineAmount ? (
-                  <p className="text-sm text-destructive">{errors.fixedOverdueFineAmount.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.fixedOverdueFineAmount.message}
+                  </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Does not scale with monthly amount. Total overdue fine = this amount × missed months
-                    for that installment (then penalty rules below, if any).
+                    Does not scale with monthly amount. Total overdue fine = this amount × missed
+                    months for that installment (then penalty rules below, if any).
                   </p>
                 )}
               </div>
             ) : (
               <div className="space-y-2 sm:col-span-2">
-                <RequiredLabel htmlFor="rd-pt-fine-rate">Fine rate (per ₹100 of monthly amount)</RequiredLabel>
+                <RequiredLabel htmlFor="rd-pt-fine-rate">
+                  Fine rate (per ₹100 of monthly amount)
+                </RequiredLabel>
                 <Input
                   id="rd-pt-fine-rate"
                   type="number"
@@ -479,8 +489,8 @@ export const CreateRdProjectTypeDialog = ({
                   <p className="text-sm text-destructive">{errors.fineRatePerHundred.message}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Base fine per step = (monthly installment ÷ 100) × this rate, then × missed months
-                    for that installment.
+                    Base fine per step = (monthly installment ÷ 100) × this rate, then × missed
+                    months for that installment.
                   </p>
                 )}
               </div>
@@ -501,7 +511,9 @@ export const CreateRdProjectTypeDialog = ({
           </div>
 
           <details className="rounded-md border p-3">
-            <summary className="cursor-pointer text-sm font-medium">Advanced penalty settings (optional)</summary>
+            <summary className="cursor-pointer text-sm font-medium">
+              Advanced penalty settings (optional)
+            </summary>
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="rd-pt-pen-mul">Penalty multiplier</RequiredLabel>
@@ -533,7 +545,12 @@ export const CreateRdProjectTypeDialog = ({
                 ) : null}
               </div>
             </div>
-            <Button type="button" variant="outline" className="mt-3" onClick={() => setHelpOpen(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3"
+              onClick={() => setHelpOpen(true)}
+            >
               Help: how penalty works
             </Button>
           </details>
@@ -545,13 +562,15 @@ export const CreateRdProjectTypeDialog = ({
                   <div className="space-y-0.5">
                     <p className="text-sm font-medium">Maturity (preview)</p>
                     <p className="text-xs text-muted-foreground">
-                      Uses your <strong>minimum monthly amount</strong> and <strong>maturity per hundred</strong>.
-                      Assumes every month is paid on time for the full duration. Maturity payout = total
-                      principal + interest (interest = total principal × maturity per hundred ÷ 100).
+                      Uses your <strong>minimum monthly amount</strong> and{" "}
+                      <strong>maturity per hundred</strong>. Assumes every month is paid on time for
+                      the full duration. Maturity payout = total principal + interest (interest =
+                      total principal × maturity per hundred ÷ 100).
                       {maturityPreview.usedFallbackDuration ? (
                         <>
                           {" "}
-                          Duration not set: using {PREVIEW_DURATION_FALLBACK} months for this preview.
+                          Duration not set: using {PREVIEW_DURATION_FALLBACK} months for this
+                          preview.
                         </>
                       ) : null}
                     </p>
@@ -568,7 +587,9 @@ export const CreateRdProjectTypeDialog = ({
                     </TableHeader>
                     <TableBody>
                       <TableRow>
-                        <TableCell className="font-medium">{formatRs(maturityPreview.monthly)}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatRs(maturityPreview.monthly)}
+                        </TableCell>
                         <TableCell>{maturityPreview.months} mo</TableCell>
                         <TableCell>{formatRs(maturityPreview.totalPrincipal)}</TableCell>
                         <TableCell>{formatRs(maturityPreview.maturityInterest)}</TableCell>
@@ -590,13 +611,13 @@ export const CreateRdProjectTypeDialog = ({
                     <p className="text-xs text-muted-foreground">
                       {feePreview.mode === "FIXED_PER_STREAK_UNIT" ? (
                         <>
-                          Fixed base fine {formatRs(feePreview.baseFine)} per missed-month unit (does not
-                          depend on monthly amount).{" "}
+                          Fixed base fine {formatRs(feePreview.baseFine)} per missed-month unit
+                          (does not depend on monthly amount).{" "}
                         </>
                       ) : (
                         <>
-                          Fine rate {feePreview.fineRatePerHundred} per ₹100 of monthly; base fine per
-                          step = (monthly ÷ 100) × rate = {formatRs(feePreview.baseFine)}.{" "}
+                          Fine rate {feePreview.fineRatePerHundred} per ₹100 of monthly; base fine
+                          per step = (monthly ÷ 100) × rate = {formatRs(feePreview.baseFine)}.{" "}
                         </>
                       )}
                       Example monthly installment {formatRs(feePreview.monthlyForFee)}
@@ -608,9 +629,10 @@ export const CreateRdProjectTypeDialog = ({
                         ? `${feePreview.graceDaysDisplay} day(s)`
                         : "not set (use form)"}
                       ; penalty from missed-month count {feePreview.penaltyStart}, multiplier{" "}
-                      {feePreview.penaltyMult}. Within a consecutive overdue block, missed-month counts run
-                      from N (oldest) down to 1 (newest). Overdue fine = base × missed months; if missed
-                      months ≥ penalty start, multiply the whole fine by the multiplier.
+                      {feePreview.penaltyMult}. Within a consecutive overdue block, missed-month
+                      counts run from N (oldest) down to 1 (newest). Overdue fine = base × missed
+                      months; if missed months ≥ penalty start, multiply the whole fine by the
+                      multiplier.
                     </p>
                   </div>
                   <Table>
@@ -619,7 +641,9 @@ export const CreateRdProjectTypeDialog = ({
                         <TableHead className="whitespace-nowrap">Situation</TableHead>
                         <TableHead className="whitespace-nowrap">Missed months</TableHead>
                         <TableHead className="whitespace-nowrap">Fine</TableHead>
-                        <TableHead className="whitespace-nowrap">Total due (principal + fine)</TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Total due (principal + fine)
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -627,7 +651,11 @@ export const CreateRdProjectTypeDialog = ({
                         <Fragment key={section.key}>
                           {sectionIndex > 0 ? (
                             <TableRow className="border-0 hover:bg-transparent">
-                              <TableCell colSpan={4} className="h-3 p-0 bg-transparent" aria-hidden />
+                              <TableCell
+                                colSpan={4}
+                                className="h-3 p-0 bg-transparent"
+                                aria-hidden
+                              />
                             </TableRow>
                           ) : null}
                           <TableRow className="bg-muted/50 hover:bg-muted/50 border-t border-border">
@@ -643,7 +671,9 @@ export const CreateRdProjectTypeDialog = ({
                               <TableCell className="max-w-[240px] text-sm leading-snug">
                                 {row.situation}
                               </TableCell>
-                              <TableCell className="text-muted-foreground">{row.missedLabel}</TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {row.missedLabel}
+                              </TableCell>
                               <TableCell>{formatRs(row.fine)}</TableCell>
                               <TableCell>{formatRs(row.totalDue)}</TableCell>
                             </TableRow>
@@ -657,9 +687,9 @@ export const CreateRdProjectTypeDialog = ({
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Enter maturity per hundred and minimum monthly amount for payout preview; choose overdue
-              fee mode and enter fixed amount or fine rate (and optional grace / penalty) for overdue fine
-              scenarios.
+              Enter maturity per hundred and minimum monthly amount for payout preview; choose
+              overdue fee mode and enter fixed amount or fine rate (and optional grace / penalty)
+              for overdue fine scenarios.
             </p>
           )}
 
@@ -683,31 +713,29 @@ export const CreateRdProjectTypeDialog = ({
           </HelpDialogHeader>
           <div className="space-y-2 text-sm">
             <p>
-              <strong>Fixed mode:</strong> base fine per step is the fixed overdue amount (does not scale
-              with monthly installment).
+              <strong>Fixed mode:</strong> base fine per step is the fixed overdue amount (does not
+              scale with monthly installment).
             </p>
             <p>
               <strong>Proportional mode:</strong> base fine per step = (monthlyAmount ÷ 100) ×
               fineRatePerHundred.
             </p>
             <p>
-              Within each maximal consecutive overdue block, the oldest unpaid installment gets missed
-              months = N, the next N−1, …, the newest gets 1. Total fine for a line = base × missed
-              months; if missed months ≥ penalty start month, the whole fine is multiplied by the
-              penalty multiplier.
+              Within each maximal consecutive overdue block, the oldest unpaid installment gets
+              missed months = N, the next N−1, …, the newest gets 1. Total fine for a line = base ×
+              missed months; if missed months ≥ penalty start month, the whole fine is multiplied by
+              the penalty multiplier.
             </p>
             <p>
               Penalty from month = missed-month count at which the multiplier starts applying to the
               whole fine.
             </p>
             <p>
-              Example (proportional): monthlyAmount 5000, fineRatePerHundred 2 → base 100 per step. If
-              penalty start = 2 and multiplier = 1.5, an installment with missed months 1 pays 100; with
-              missed months 2 pays (100×2)×1.5 = 300.
+              Example (proportional): monthlyAmount 5000, fineRatePerHundred 2 → base 100 per step.
+              If penalty start = 2 and multiplier = 1.5, an installment with missed months 1 pays
+              100; with missed months 2 pays (100×2)×1.5 = 300.
             </p>
-            <p>
-              If penalty fields are empty, defaults are multiplier 1 and start month 1.
-            </p>
+            <p>If penalty fields are empty, defaults are multiplier 1 and start month 1.</p>
           </div>
         </HelpDialogContent>
       </HelpDialog>

@@ -40,9 +40,12 @@ const formatRs = (value: number) =>
 const formatPct = (value: number) =>
   `${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
-/** Implied annual % when payout is defined as Rs per Rs 100 principal per month. */
-const annualRateFromMonthlyPayoutPerHundred = (monthlyPayoutAmountPerHundred: number) =>
-  (monthlyPayoutAmountPerHundred / 100) * 12 * 100;
+/**
+ * When monthly payout is `m` rupees per ₹100 principal per month, monthly return on principal is (m/100).
+ * Simple annual rate (%) = 12 × (m/100) × 100 = 12m.
+ */
+const equivalentAnnualSimplePercentFromMonthlyPerHundred = (monthlyPayoutPerHundred: number) =>
+  12 * monthlyPayoutPerHundred;
 
 const schema = z
   .object({
@@ -126,6 +129,7 @@ export const CreateMisProjectTypeDialog = ({
   });
   const calculationMethod = watch("calculationMethod");
   const duration = watch("duration");
+  const minimumAmount = watch("minimumAmount");
   const monthlyPayoutAmountPerHundred = watch("monthlyPayoutAmountPerHundred");
   const annualInterestRate = watch("annualInterestRate");
 
@@ -152,14 +156,22 @@ export const CreateMisProjectTypeDialog = ({
       duration >= 1
     );
 
-    const rows = EXAMPLE_DEPOSITS.map((deposit) => {
+    const depositAmounts: number[] = [];
+    if (typeof minimumAmount === "number" && !Number.isNaN(minimumAmount) && minimumAmount >= 1) {
+      depositAmounts.push(minimumAmount);
+    }
+    for (const d of EXAMPLE_DEPOSITS) {
+      if (!depositAmounts.includes(d)) depositAmounts.push(d);
+    }
+
+    const rows = depositAmounts.map((deposit) => {
       let monthly: number;
       let interestRateLabel: string;
 
       if (calculationMethod === "MONTHLY_PAYOUT_PER_HUNDRED") {
         monthly = (deposit / 100) * monthlyPayoutAmountPerHundred!;
         interestRateLabel = formatPct(
-          annualRateFromMonthlyPayoutPerHundred(monthlyPayoutAmountPerHundred!),
+          equivalentAnnualSimplePercentFromMonthlyPerHundred(monthlyPayoutAmountPerHundred!),
         );
       } else {
         monthly = (deposit * annualInterestRate!) / 100 / 12;
@@ -179,7 +191,13 @@ export const CreateMisProjectTypeDialog = ({
     });
 
     return { months, usedFallbackDuration, rows };
-  }, [calculationMethod, duration, monthlyPayoutAmountPerHundred, annualInterestRate]);
+  }, [
+    calculationMethod,
+    duration,
+    minimumAmount,
+    monthlyPayoutAmountPerHundred,
+    annualInterestRate,
+  ]);
 
   useEffect(() => {
     if (!open) reset();
@@ -349,8 +367,8 @@ export const CreateMisProjectTypeDialog = ({
               <div className="space-y-0.5">
                 <p className="text-sm font-medium">Example accounts (preview)</p>
                 <p className="text-xs text-muted-foreground">
-                  Sample deposits {EXAMPLE_DEPOSITS.map((d) => formatRs(d)).join(", ")}. Total
-                  interest is monthly payout × duration; total payout is deposit + total interest.
+                  Includes your minimum principal (if set) plus sample amounts. Total interest is
+                  monthly payout × duration; total payout is deposit + total interest.
                   {examplePreview.usedFallbackDuration ? (
                     <>
                       {" "}
@@ -367,7 +385,7 @@ export const CreateMisProjectTypeDialog = ({
                     <TableHead className="whitespace-nowrap">Duration</TableHead>
                     <TableHead className="whitespace-nowrap">Total interest</TableHead>
                     <TableHead className="whitespace-nowrap">Total payout</TableHead>
-                    <TableHead className="whitespace-nowrap">Annual rate (%)</TableHead>
+                    <TableHead className="whitespace-nowrap">Equiv. annual (simple %)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

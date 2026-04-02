@@ -33,6 +33,7 @@ import { ReturnMisPrincipalDialog } from "@/dialogs/ReturnMisPrincipalDialog";
 import type { MisAccount, MisProjectType } from "@/lib/misApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -73,6 +74,7 @@ type FilterFieldKey =
 type SortField = "id" | "customer_name" | "phone" | "deposit_amount" | "monthly_interest" | "maturity_date" | "status";
 type SortOrder = "asc" | "desc";
 type MisColumnKey =
+  | "mis_id"
   | "customer"
   | "phone"
   | "deposit_amount"
@@ -90,6 +92,7 @@ interface FilterRule {
 
 const MIS_COLUMN_VISIBILITY_STORAGE_KEY = "mis.accountsTable.visibleColumns.v1";
 const DEFAULT_VISIBLE_MIS_COLUMNS: Record<MisColumnKey, boolean> = {
+  mis_id: true,
   customer: true,
   phone: true,
   deposit_amount: true,
@@ -99,6 +102,7 @@ const DEFAULT_VISIBLE_MIS_COLUMNS: Record<MisColumnKey, boolean> = {
   actions: true,
 };
 const MIS_COLUMN_OPTIONS: Array<{ key: MisColumnKey; label: string }> = [
+  { key: "mis_id", label: "MIS Account ID" },
   { key: "customer", label: "Customer" },
   { key: "phone", label: "Phone" },
   { key: "deposit_amount", label: "Deposit Amount" },
@@ -234,7 +238,6 @@ const MisPage = () => {
   const societyId = selectedMembership?.societyId ?? null;
 
   const canCreate = hasPermission(permissions, "mis.create");
-  const canRead = hasPermission(permissions, "mis.read");
   const canDeposit = hasPermission(permissions, "mis.deposit");
   const canPayInterest = hasPermission(permissions, "mis.pay_interest");
   const canReturnPrincipal = hasPermission(permissions, "mis.return_principal");
@@ -260,6 +263,7 @@ const MisPage = () => {
     try {
       const parsed = JSON.parse(raw) as Partial<Record<MisColumnKey, unknown>>;
       return {
+        mis_id: typeof parsed.mis_id === "boolean" ? parsed.mis_id : DEFAULT_VISIBLE_MIS_COLUMNS.mis_id,
         customer: typeof parsed.customer === "boolean" ? parsed.customer : DEFAULT_VISIBLE_MIS_COLUMNS.customer,
         phone: typeof parsed.phone === "boolean" ? parsed.phone : DEFAULT_VISIBLE_MIS_COLUMNS.phone,
         deposit_amount:
@@ -594,6 +598,14 @@ const MisPage = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                {visibleColumns.mis_id ? (
+                  <TableHead>
+                    <button type="button" className="group inline-flex items-center" onClick={() => handleSortClick("id")}>
+                      MIS ID
+                      {renderSortIcon("id")}
+                    </button>
+                  </TableHead>
+                ) : null}
                 {visibleColumns.customer ? (
                   <TableHead>
                     <button type="button" className="group inline-flex items-center" onClick={() => handleSortClick("customer_name")}>
@@ -667,6 +679,17 @@ const MisPage = () => {
               ) : (
                 filteredAccountRows.map((account) => (
                   <TableRow key={account.id}>
+                    {visibleColumns.mis_id ? (
+                      <TableCell>
+                        <button
+                          type="button"
+                          className="text-primary underline-offset-4 hover:underline font-medium"
+                          onClick={() => setSelectedMisId(account.id)}
+                        >
+                          {account.id.slice(0, 8)}
+                        </button>
+                      </TableCell>
+                    ) : null}
                     {visibleColumns.customer ? <TableCell className="font-medium">{account.customer.fullName}</TableCell> : null}
                     {visibleColumns.phone ? <TableCell>{account.customer.phone}</TableCell> : null}
                     {visibleColumns.deposit_amount ? <TableCell>{formatCurrency(account.depositAmount)}</TableCell> : null}
@@ -684,11 +707,6 @@ const MisPage = () => {
                     {visibleColumns.actions ? (
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {canRead ? (
-                            <Button type="button" variant="outline" size="sm" onClick={() => setSelectedMisId(account.id)}>
-                              View
-                            </Button>
-                          ) : null}
                           {canRemoveMis ? (
                             <Button
                               type="button"
@@ -754,6 +772,12 @@ const MisPage = () => {
             </Button>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3 mt-8">
+        <h2 className="text-xl font-semibold">Activities</h2>
+        <ActivityHistory societyId={societyId ?? ""} entityType="MIS_ACCOUNT" entityId={null} title="MIS Account Activities" />
+        <ActivityHistory societyId={societyId ?? ""} entityType="MIS_PROJECT_TYPE" entityId={null} title="MIS Project Type Activities" />
       </section>
 
       {societyId ? (

@@ -14,6 +14,7 @@ import {
   payMisInterest,
   requestMisDocumentUploadUrl,
   returnMisPrincipal,
+  updateMisAccount,
 } from "@/lib/misApi";
 
 export const useMisProjectTypesQuery = (
@@ -102,6 +103,18 @@ export const useCreateMisAccountMutation = (societyId: string) => {
     mutationFn: createMisAccount.bind(null, societyId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["mis-project-types", societyId] });
+      void queryClient.invalidateQueries({ queryKey: ["mis-accounts", societyId] });
+    },
+  });
+};
+
+export const useUpdateMisAccountMutation = (societyId: string, misId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof updateMisAccount>[2]) =>
+      updateMisAccount(societyId, misId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["mis-detail", societyId, misId] });
       void queryClient.invalidateQueries({ queryKey: ["mis-accounts", societyId] });
     },
   });

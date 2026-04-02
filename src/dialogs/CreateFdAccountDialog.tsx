@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -21,15 +21,20 @@ import {
 } from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
-import { useCreateFdAccountMutation, useFdReferrerMembersQuery } from "@/hooks/useFixedDepositApi";
+import {
+  useCreateFdAccountMutation,
+  useFdReferrerMembersQuery,
+  useUpdateFdAccountMutation,
+} from "@/hooks/useFixedDepositApi";
 import {
   completeFdDocumentUpload,
   computeFdMaturityAmountPreview,
+  type FixedDepositDetail,
   type FixedDepositProjectType,
   type PaymentMethod,
 } from "@/lib/fixedDepositApi";
 import { toast } from "sonner";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorMessage, getApiValidationErrors } from "@/lib/apiError";
 import { formatDate } from "@/lib/dateFormat";
 
 const schema = z
@@ -170,6 +175,9 @@ interface CreateFdAccountDialogProps {
   onOpenChange: (open: boolean) => void;
   societyId: string;
   projectTypes: FixedDepositProjectType[];
+  mode?: "create" | "edit";
+  initialData?: FixedDepositDetail | null;
+  onSaved?: () => void;
 }
 
 const getMaturityDate = (startDate: string, durationMonths: number) => {
@@ -199,10 +207,20 @@ export const CreateFdAccountDialog = ({
   onOpenChange,
   societyId,
   projectTypes,
+  mode = "create",
+  initialData = null,
+  onSaved,
 }: CreateFdAccountDialogProps) => {
   const mutation = useCreateFdAccountMutation(societyId);
+  const updateMutation = useUpdateFdAccountMutation(societyId, initialData?.id ?? "");
   const { data: referrerMembers } = useFdReferrerMembersQuery(societyId);
   const [documents, setDocuments] = useState<Array<{ file: File; displayName: string }>>([]);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setDocuments([]);
+    }
+    onOpenChange(nextOpen);
+  };
 
   const {
     register,
@@ -210,8 +228,7 @@ export const CreateFdAccountDialog = ({
     control,
     reset,
     setValue,
-    getValues,
-    watch,
+    setError,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -238,9 +255,9 @@ export const CreateFdAccountDialog = ({
       ],
       fd: {
         projectTypeId: "",
-        depositAmount: 0,
+        depositAmount: undefined as unknown as number,
         startDate: "",
-        initialPaymentAmount: 0,
+        initialPaymentAmount: undefined as unknown as number,
       },
       payment: {
         paymentMethod: "CASH",
@@ -260,35 +277,63 @@ export const CreateFdAccountDialog = ({
   useEffect(() => {
     if (!open) {
       reset();
-      setDocuments([]);
       return;
     }
-
-    const existingProjectTypeId = getValues("fd.projectTypeId");
-    if (!existingProjectTypeId && projectTypes.length > 0) {
-      setValue("fd.projectTypeId", projectTypes[0].id, { shouldDirty: false });
+    if (mode === "edit" && initialData) {
+      reset({
+        referrerMembershipId: "",
+        customer: {
+          fullName: initialData.customer.fullName ?? "",
+          phone: initialData.customer.phone ?? "",
+          email: initialData.customer.email ?? "",
+          address: initialData.customer.address ?? "",
+          aadhaar: initialData.customer.aadhaar ?? "",
+          pan: initialData.customer.pan ?? "",
+        },
+        nominees: initialData.customer.nominees.map((nominee) => ({
+          name: nominee.name ?? "",
+          phone: nominee.phone ?? "",
+          relation: nominee.relation ?? "",
+          customRelation: "",
+          address: nominee.address ?? "",
+          aadhaar: nominee.aadhaar ?? "",
+          pan: nominee.pan ?? "",
+        })),
+        fd: {
+          projectTypeId: initialData.projectType.id,
+          depositAmount: Number(initialData.principalAmount),
+          startDate: initialData.startDate.slice(0, 10),
+          initialPaymentAmount: Number(initialData.principalAmount),
+        },
+        payment: {
+          paymentMethod: "CASH",
+          transactionId: "",
+          upiId: "",
+          chequeNumber: "",
+          bankName: "",
+        },
+      });
     }
-  }, [getValues, open, projectTypes, reset, setValue]);
+  }, [initialData, mode, open, reset]);
 
-  const selectedProjectTypeId = watch("fd.projectTypeId");
-  const depositAmount = watch("fd.depositAmount");
-  const initialPaymentAmount = watch("fd.initialPaymentAmount");
-  const startDate = watch("fd.startDate");
-  const paymentMethod = watch("payment.paymentMethod");
-  const nomineeValues = watch("nominees");
+  const selectedProjectTypeId = useWatch({ control, name: "fd.projectTypeId" });
+  const depositAmount = useWatch({ control, name: "fd.depositAmount" });
+  const initialPaymentAmount = useWatch({ control, name: "fd.initialPaymentAmount" });
+  const startDate = useWatch({ control, name: "fd.startDate" });
+  const paymentMethod = useWatch({ control, name: "payment.paymentMethod" });
+  const nomineeValues = useWatch({ control, name: "nominees" });
+  const referrerMembershipId = useWatch({ control, name: "referrerMembershipId" });
 
   const selectedProjectType = useMemo(
     () => projectTypes.find((item) => item.id === selectedProjectTypeId),
     [projectTypes, selectedProjectTypeId],
   );
   const referrerOptions = useMemo(
-    () => [
-      { value: "none", label: "No referrer" },
-      ...(referrerMembers ?? []).map((member) => ({
+    () =>
+      (referrerMembers ?? []).map((member) => ({
         value: member.id,
         label: `${member.user.name} - ${member.role.name} (${member.user.phone})`,
       })),
-    ],
     [referrerMembers],
   );
 
@@ -317,11 +362,37 @@ export const CreateFdAccountDialog = ({
         return;
       }
 
+      if (mode === "edit" && initialData) {
+        await updateMutation.mutateAsync({
+          customer: {
+            ...values.customer,
+            email: values.customer.email || undefined,
+          },
+          nominees: values.nominees.map((nominee) => {
+            const { customRelation, ...rest } = nominee;
+            return {
+              ...rest,
+              relation:
+                nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
+            };
+          }),
+        });
+        toast.success("FD account updated");
+        onSaved?.();
+        handleOpenChange(false);
+        return;
+      }
+
+      if (!values.referrerMembershipId) {
+        setError("referrerMembershipId", {
+          type: "manual",
+          message: "Referrer member is required",
+        });
+        return;
+      }
+
       const created = await mutation.mutateAsync({
-        referrerMembershipId:
-          values.referrerMembershipId && values.referrerMembershipId !== "none"
-            ? values.referrerMembershipId
-            : undefined,
+        referrerMembershipId: values.referrerMembershipId,
         customer: {
           ...values.customer,
           email: values.customer.email || undefined,
@@ -367,8 +438,13 @@ export const CreateFdAccountDialog = ({
       }
 
       toast.success("Fixed deposit account created");
-      onOpenChange(false);
+      onSaved?.();
+      handleOpenChange(false);
     } catch (error) {
+      const validationErrors = getApiValidationErrors(error);
+      Object.entries(validationErrors).forEach(([field, message]) => {
+        setError(field as keyof FormData, { type: "server", message });
+      });
       toast.error(getApiErrorMessage(error, "Failed to create fixed deposit account"));
     }
   };
@@ -384,10 +460,10 @@ export const CreateFdAccountDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
         <DialogHeader>
-          <DialogTitle>Create FD Account</DialogTitle>
+          <DialogTitle>{mode === "edit" ? "Edit FD Account" : "Create FD Account"}</DialogTitle>
           <DialogDescription>
             Customer, nominee, fixed deposit account, and initial transaction will be created
             together.
@@ -395,20 +471,23 @@ export const CreateFdAccountDialog = ({
         </DialogHeader>
 
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-2">
-            <Label>Referrer Member</Label>
+          {mode === "create" ? (
+            <div className="space-y-2">
+            <RequiredLabel>Referrer Member</RequiredLabel>
             <SearchableSingleSelectAsync
-              value={watch("referrerMembershipId") || "none"}
+              value={referrerMembershipId || ""}
               onChange={(value) =>
-                setValue("referrerMembershipId", value === "none" ? "" : value, {
-                  shouldValidate: true,
-                })
+                setValue("referrerMembershipId", value, { shouldValidate: true })
               }
               options={referrerOptions}
-              placeholder="Select referrer member (optional)"
+              placeholder="Select referrer member"
               className="w-full"
             />
-          </div>
+            {errors.referrerMembershipId ? (
+              <p className="text-sm text-destructive">{errors.referrerMembershipId.message}</p>
+            ) : null}
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Customer Info</h3>
@@ -460,7 +539,7 @@ export const CreateFdAccountDialog = ({
                 ) : null}
               </div>
             </div>
-          </div>
+            </div>
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Nominee Info</h3>
@@ -573,9 +652,10 @@ export const CreateFdAccountDialog = ({
             >
               Add Nominee
             </Button>
-          </div>
+            </div>
 
-          <div className="space-y-3">
+          {mode === "create" ? (
+            <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">FD Details</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
@@ -604,7 +684,11 @@ export const CreateFdAccountDialog = ({
 
               <div className="space-y-2">
                 <RequiredLabel>Deposit Amount</RequiredLabel>
-                <Input type="number" {...register("fd.depositAmount", { valueAsNumber: true })} />
+                <Input
+                  type="number"
+                  placeholder="Enter deposit amount"
+                  {...register("fd.depositAmount", { valueAsNumber: true })}
+                />
                 {errors.fd?.depositAmount ? (
                   <p className="text-sm text-destructive">{errors.fd.depositAmount.message}</p>
                 ) : null}
@@ -614,6 +698,7 @@ export const CreateFdAccountDialog = ({
                 <RequiredLabel>Initial Payment Amount</RequiredLabel>
                 <Input
                   type="number"
+                  placeholder="Enter initial payment"
                   {...register("fd.initialPaymentAmount", { valueAsNumber: true })}
                 />
                 {errors.fd?.initialPaymentAmount ? (
@@ -625,15 +710,27 @@ export const CreateFdAccountDialog = ({
 
               <div className="space-y-2">
                 <RequiredLabel>Start Date</RequiredLabel>
-                <Input type="date" {...register("fd.startDate")} />
+                <Input type="date" placeholder="Select start date" {...register("fd.startDate")} />
                 {errors.fd?.startDate ? (
                   <p className="text-sm text-destructive">{errors.fd.startDate.message}</p>
                 ) : null}
               </div>
             </div>
-          </div>
+            {selectedProjectType &&
+            typeof depositAmount === "number" &&
+            !Number.isNaN(depositAmount) &&
+            depositAmount > 0 &&
+            depositAmount < selectedProjectTypeMinimumAmount ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Deposit amount is below this plan&apos;s minimum of Rs.{" "}
+                {selectedProjectTypeMinimumAmount.toFixed(2)}.
+              </div>
+            ) : null}
+            </div>
+          ) : null}
 
-          <div className="space-y-3">
+          {mode === "create" ? (
+            <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Payment Info</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
@@ -700,7 +797,8 @@ export const CreateFdAccountDialog = ({
                 </>
               )}
             </div>
-          </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
@@ -742,7 +840,8 @@ export const CreateFdAccountDialog = ({
             ) : null}
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
+          {mode === "create" ? (
+            <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Selected Project Type
@@ -827,14 +926,22 @@ export const CreateFdAccountDialog = ({
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending || projectTypes.length === 0}>
-              Create FD Account
+            <Button
+              type="submit"
+              disabled={
+                mutation.isPending ||
+                updateMutation.isPending ||
+                (mode === "create" && projectTypes.length === 0)
+              }
+            >
+              {mode === "edit" ? "Save Changes" : "Create FD Account"}
             </Button>
           </div>
         </form>

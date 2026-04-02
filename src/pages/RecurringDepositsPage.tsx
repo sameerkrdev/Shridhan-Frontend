@@ -16,9 +16,11 @@ import { formatDate } from "@/lib/dateFormat";
 import { CreateRdProjectTypeDialog } from "@/dialogs/CreateRdProjectTypeDialog";
 import { CreateRdAccountDialog } from "@/dialogs/CreateRdAccountDialog";
 import { RdDetailDialog } from "@/dialogs/RdDetailDialog";
+import { AddRdTransactionDialog } from "@/dialogs/AddRdTransactionDialog";
 import type { RdAccount } from "@/lib/rdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -37,6 +39,7 @@ const RecurringDepositsPage = () => {
   const canRead = hasPermission(permissions, "recurring_deposit.read");
   const canRemoveRd = hasPermission(permissions, "recurring_deposit.remove");
   const canRemoveProjectType = hasPermission(permissions, "recurring_deposit.remove_project_type");
+  const canPayRd = hasPermission(permissions, "recurring_deposit.pay");
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -49,6 +52,7 @@ const RecurringDepositsPage = () => {
   const [isCreateProjectTypeOpen, setIsCreateProjectTypeOpen] = useState(false);
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
   const [selectedRdId, setSelectedRdId] = useState<string | null>(null);
+  const [isAddRdTransactionOpen, setIsAddRdTransactionOpen] = useState(false);
   const [rdToDelete, setRdToDelete] = useState<{ id: string; label: string } | null>(null);
   const [projectTypeToDelete, setProjectTypeToDelete] = useState<{ id: string; label: string } | null>(null);
 
@@ -77,6 +81,15 @@ const RecurringDepositsPage = () => {
       totalPages: accountsPayload?.totalPages ?? 1,
     }),
     [accountsPayload?.total, accountsPayload?.totalPages],
+  );
+
+  const rdAccountOptions = useMemo(
+    () =>
+      accountRows.map((account: RdAccount) => ({
+        id: account.id,
+        label: `${account.customer.fullName} — ${account.customer.phone} (${account.id.slice(0, 8)}…)`,
+      })),
+    [accountRows],
   );
 
   const handleSortClick = (field: SortField) => {
@@ -234,6 +247,11 @@ const RecurringDepositsPage = () => {
                 Create RD Account
               </Button>
             </Can>
+            {canPayRd ? (
+              <Button type="button" variant="secondary" onClick={() => setIsAddRdTransactionOpen(true)}>
+                Add Transaction
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -353,6 +371,12 @@ const RecurringDepositsPage = () => {
         </div>
       </section>
 
+      <section className="space-y-3 mt-8">
+        <h2 className="text-xl font-semibold">Activities</h2>
+        <ActivityHistory societyId={societyId ?? ""} entityType="RD_ACCOUNT" entityId={null} title="RD Account Activities" />
+        <ActivityHistory societyId={societyId ?? ""} entityType="RD_PROJECT_TYPE" entityId={null} title="RD Project Type Activities" />
+      </section>
+
       {societyId ? (
         <>
           <CreateRdProjectTypeDialog
@@ -367,6 +391,14 @@ const RecurringDepositsPage = () => {
             projectTypes={projectTypeRows}
           />
           <RdDetailDialog open={Boolean(selectedRdId)} onOpenChange={(o) => !o && setSelectedRdId(null)} societyId={societyId} rdId={selectedRdId} />
+          {canPayRd ? (
+            <AddRdTransactionDialog
+              open={isAddRdTransactionOpen}
+              onOpenChange={setIsAddRdTransactionOpen}
+              societyId={societyId}
+              recurringDepositOptions={rdAccountOptions}
+            />
+          ) : null}
         </>
       ) : null}
 

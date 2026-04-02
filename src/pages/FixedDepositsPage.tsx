@@ -51,6 +51,7 @@ import type { FixedDepositAccount, ServiceStatus } from "@/lib/fixedDepositApi";
 import { Can, hasPermission } from "@/components/Can";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -1078,6 +1079,12 @@ const FixedDepositsPage = () => {
             </Button>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3 mt-8">
+        <h2 className="text-xl font-semibold">Activities</h2>
+        <ActivityHistory societyId={societyId ?? ""} entityType="FD_ACCOUNT" entityId={null} title="FD Account Activities" />
+        <ActivityHistory societyId={societyId ?? ""} entityType="FD_PROJECT_TYPE" entityId={null} title="FD Project Type Activities" />
       </section>
 
       {societyId ? (

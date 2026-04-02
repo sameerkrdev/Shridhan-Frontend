@@ -2,17 +2,37 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
-import { completeMisDocumentUpload, type MisProjectType } from "@/lib/misApi";
-import { useCreateMisAccountMutation, useMisReferrerMembersQuery } from "@/hooks/useMisApi";
+import {
+  completeMisDocumentUpload,
+  type MisDetail,
+  type MisProjectType,
+} from "@/lib/misApi";
+import {
+  useCreateMisAccountMutation,
+  useMisReferrerMembersQuery,
+  useUpdateMisAccountMutation,
+} from "@/hooks/useMisApi";
 import { toast } from "sonner";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorMessage, getApiValidationErrors } from "@/lib/apiError";
 import { formatDate } from "@/lib/dateFormat";
 
 const schema = z
@@ -23,7 +43,11 @@ const schema = z
       phone: z.string().regex(/^[6-9]\d{9}$/, "Phone must be a valid 10-digit Indian number"),
       email: z.string().email("Invalid email").optional().or(z.literal("")),
       address: z.string().max(500).optional(),
-      aadhaar: z.string().regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits").optional().or(z.literal("")),
+      aadhaar: z
+        .string()
+        .regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits")
+        .optional()
+        .or(z.literal("")),
       pan: z
         .string()
         .regex(/^[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}$/, "PAN must be valid (ABCDE1234F)")
@@ -34,11 +58,17 @@ const schema = z
       .array(
         z.object({
           name: z.string().trim().min(2, "Nominee name is required").max(150),
-          phone: z.string().regex(/^[6-9]\d{9}$/, "Nominee phone must be a valid 10-digit Indian number"),
+          phone: z
+            .string()
+            .regex(/^[6-9]\d{9}$/, "Nominee phone must be a valid 10-digit Indian number"),
           relation: z.string().optional(),
           customRelation: z.string().optional(),
           address: z.string().max(500).optional(),
-          aadhaar: z.string().regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits").optional().or(z.literal("")),
+          aadhaar: z
+            .string()
+            .regex(/^\d{12}$/, "Aadhaar must be exactly 12 digits")
+            .optional()
+            .or(z.literal("")),
           pan: z
             .string()
             .regex(/^[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}$/, "PAN must be valid (ABCDE1234F)")
@@ -63,7 +93,10 @@ const schema = z
     }),
   })
   .superRefine((payload, ctx) => {
-    if (payload.payment.amount !== undefined && payload.payment.amount > payload.mis.depositAmount) {
+    if (
+      payload.payment.amount !== undefined &&
+      payload.payment.amount > payload.mis.depositAmount
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["payment", "amount"],
@@ -72,7 +105,11 @@ const schema = z
     }
     if (payload.payment.paymentMethod === "UPI") {
       if (!payload.payment.upiId) {
-        ctx.addIssue({ code: "custom", path: ["payment", "upiId"], message: "UPI ID is required for UPI payments" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["payment", "upiId"],
+          message: "UPI ID is required for UPI payments",
+        });
       }
       if (!payload.payment.transactionId) {
         ctx.addIssue({
@@ -84,7 +121,11 @@ const schema = z
     }
     if (payload.payment.paymentMethod === "CHEQUE") {
       if (!payload.payment.bankName) {
-        ctx.addIssue({ code: "custom", path: ["payment", "bankName"], message: "Bank name is required for cheque payments" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["payment", "bankName"],
+          message: "Bank name is required for cheque payments",
+        });
       }
       if (!payload.payment.chequeNumber) {
         ctx.addIssue({
@@ -138,6 +179,9 @@ interface CreateMisAccountDialogProps {
   onOpenChange: (open: boolean) => void;
   societyId: string;
   projectTypes: MisProjectType[];
+  mode?: "create" | "edit";
+  initialData?: MisDetail | null;
+  onSaved?: () => void;
 }
 
 const formatCurrency = (value: number) => `Rs. ${value.toFixed(2)}`;
@@ -160,8 +204,12 @@ export const CreateMisAccountDialog = ({
   onOpenChange,
   societyId,
   projectTypes,
+  mode = "create",
+  initialData = null,
+  onSaved,
 }: CreateMisAccountDialogProps) => {
   const mutation = useCreateMisAccountMutation(societyId);
+  const updateMutation = useUpdateMisAccountMutation(societyId, initialData?.id ?? "");
   const { data: referrerMembers } = useMisReferrerMembersQuery(societyId);
   const [documents, setDocuments] = useState<Array<{ file: File; displayName: string }>>([]);
   const {
@@ -169,7 +217,6 @@ export const CreateMisAccountDialog = ({
     control,
     watch,
     setValue,
-    getValues,
     handleSubmit,
     reset,
     setError,
@@ -187,11 +234,21 @@ export const CreateMisAccountDialog = ({
         aadhaar: "",
         pan: "",
       },
-      nominees: [{ name: "", phone: "", relation: "", customRelation: "", address: "", aadhaar: "", pan: "" }],
+      nominees: [
+        {
+          name: "",
+          phone: "",
+          relation: "",
+          customRelation: "",
+          address: "",
+          aadhaar: "",
+          pan: "",
+        },
+      ],
       mis: {
         projectTypeId: "",
-        depositAmount: 100000,
-        startDate: new Date().toISOString().slice(0, 10),
+        depositAmount: undefined as unknown as number,
+        startDate: "",
       },
       payment: {
         amount: undefined,
@@ -215,11 +272,45 @@ export const CreateMisAccountDialog = ({
       setDocuments([]);
       return;
     }
-    const existingProjectTypeId = getValues("mis.projectTypeId");
-    if (!existingProjectTypeId && projectTypes.length > 0) {
-      setValue("mis.projectTypeId", projectTypes[0].id, { shouldDirty: false });
+
+    if (mode === "edit" && initialData) {
+      reset({
+        referrerMembershipId: "",
+        customer: {
+          fullName: initialData.customer.fullName ?? "",
+          phone: initialData.customer.phone ?? "",
+          email: initialData.customer.email ?? "",
+          address: initialData.customer.address ?? "",
+          aadhaar: initialData.customer.aadhaar ?? "",
+          pan: initialData.customer.pan ?? "",
+        },
+        nominees:
+          initialData.customer.nominees.map((nominee) => ({
+            name: nominee.name ?? "",
+            phone: nominee.phone ?? "",
+            relation: nominee.relation ?? "",
+            customRelation: "",
+            address: nominee.address ?? "",
+            aadhaar: nominee.aadhaar ?? "",
+            pan: nominee.pan ?? "",
+          })) ?? [],
+        mis: {
+          projectTypeId: initialData.projectType.id,
+          depositAmount: Number(initialData.depositAmount),
+          startDate: initialData.startDate.slice(0, 10),
+        },
+        payment: {
+          amount: 0,
+          paymentMethod: "CASH",
+          transactionId: "",
+          upiId: "",
+          bankName: "",
+          chequeNumber: "",
+        },
+      });
+      setDocuments([]);
     }
-  }, [getValues, open, projectTypes, reset, setValue]);
+  }, [initialData, mode, open, reset]);
 
   const selectedProjectTypeId = watch("mis.projectTypeId");
   const depositAmount = watch("mis.depositAmount") ?? 0;
@@ -233,13 +324,11 @@ export const CreateMisAccountDialog = ({
     [projectTypes, selectedProjectTypeId],
   );
   const referrerOptions = useMemo(
-    () => [
-      { value: "none", label: "No referrer" },
-      ...(referrerMembers ?? []).map((member) => ({
+    () =>
+      (referrerMembers ?? []).map((member) => ({
         value: member.id,
         label: `${member.user.name} - ${member.role.name} (${member.user.phone})`,
       })),
-    ],
     [referrerMembers],
   );
 
@@ -307,6 +396,13 @@ export const CreateMisAccountDialog = ({
   ]);
 
   const onSubmit = async (values: FormData) => {
+    if (mode === "create" && !values.referrerMembershipId?.trim()) {
+      setError("referrerMembershipId", {
+        type: "manual",
+        message: "Referrer member is required",
+      });
+      return;
+    }
     if (selectedProjectType && values.mis.depositAmount < selectedProjectTypeMinimumAmount) {
       setError("mis.depositAmount", {
         type: "manual",
@@ -316,11 +412,35 @@ export const CreateMisAccountDialog = ({
     }
 
     try {
+      if (mode === "edit" && initialData) {
+        await updateMutation.mutateAsync({
+          customer: {
+            ...values.customer,
+            email: values.customer.email || undefined,
+            address: values.customer.address || undefined,
+            aadhaar: values.customer.aadhaar || undefined,
+            pan: values.customer.pan || undefined,
+          },
+          nominees: values.nominees.map((nominee) => {
+            const { customRelation, ...rest } = nominee;
+            return {
+              ...rest,
+              relation:
+                nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
+              address: nominee.address || undefined,
+              aadhaar: nominee.aadhaar || undefined,
+              pan: nominee.pan || undefined,
+            };
+          }),
+        });
+        toast.success("MIS account updated");
+        onSaved?.();
+        onOpenChange(false);
+        return;
+      }
+
       const created = await mutation.mutateAsync({
-        referrerMembershipId:
-          values.referrerMembershipId && values.referrerMembershipId !== "none"
-            ? values.referrerMembershipId
-            : undefined,
+        referrerMembershipId: values.referrerMembershipId,
         customer: {
           ...values.customer,
           email: values.customer.email || undefined,
@@ -329,7 +449,8 @@ export const CreateMisAccountDialog = ({
           const { customRelation, ...rest } = nominee;
           return {
             ...rest,
-            relation: nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
+            relation:
+              nominee.relation === "OTHER" ? (customRelation?.trim() ?? "") : nominee.relation,
           };
         }),
         mis: {
@@ -358,7 +479,8 @@ export const CreateMisAccountDialog = ({
         await Promise.all(
           created.uploadTargets.map(async (target) => {
             const source = documents.find(
-              (item) => item.file.name === target.fileName && item.displayName === target.displayName,
+              (item) =>
+                item.file.name === target.fileName && item.displayName === target.displayName,
             );
             if (!source) return;
 
@@ -374,8 +496,24 @@ export const CreateMisAccountDialog = ({
 
       toast.success("MIS account created");
       reset();
+      onSaved?.();
       onOpenChange(false);
     } catch (error) {
+      const validationErrors = getApiValidationErrors(error);
+      validationErrors.forEach((issue) => {
+        const fieldPath = issue.path.join(".") as
+          | "referrerMembershipId"
+          | "customer.fullName"
+          | "customer.phone"
+          | "customer.email"
+          | "customer.address"
+          | "customer.aadhaar"
+          | "customer.pan"
+          | "mis.projectTypeId"
+          | "mis.depositAmount"
+          | "mis.startDate";
+        setError(fieldPath, { type: "server", message: issue.message });
+      });
       toast.error(getApiErrorMessage(error, "Failed to create MIS account"));
     }
   };
@@ -383,7 +521,10 @@ export const CreateMisAccountDialog = ({
   const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files ?? []);
     if (!selected.length) return;
-    setDocuments((prev) => [...prev, ...selected.map((file) => ({ file, displayName: file.name }))]);
+    setDocuments((prev) => [
+      ...prev,
+      ...selected.map((file) => ({ file, displayName: file.name })),
+    ]);
     event.target.value = "";
   };
 
@@ -391,25 +532,31 @@ export const CreateMisAccountDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
         <DialogHeader>
-          <DialogTitle>Create MIS Account</DialogTitle>
+          <DialogTitle>{mode === "edit" ? "Edit MIS Account" : "Create MIS Account"}</DialogTitle>
           <DialogDescription>
-            Customer, nominee, MIS account, and initial deposit transaction will be created together.
+            Customer, nominee, MIS account, and initial deposit transaction will be created
+            together.
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-2">
-            <Label>Referrer Member</Label>
+          {mode === "create" ? (
+            <div className="space-y-2">
+            <RequiredLabel>Referrer Member</RequiredLabel>
             <SearchableSingleSelectAsync
-              value={watch("referrerMembershipId") || "none"}
+              value={watch("referrerMembershipId") || ""}
               onChange={(value) =>
-                setValue("referrerMembershipId", value === "none" ? "" : value, { shouldValidate: true })
+                setValue("referrerMembershipId", value, { shouldValidate: true })
               }
               options={referrerOptions}
-              placeholder="Select referrer member (optional)"
+              placeholder="Select referrer member"
               className="w-full"
             />
-          </div>
+            {errors.referrerMembershipId ? (
+              <p className="text-sm text-destructive">{errors.referrerMembershipId.message}</p>
+            ) : null}
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Customer Info</h3>
@@ -458,7 +605,7 @@ export const CreateMisAccountDialog = ({
                 ) : null}
               </div>
             </div>
-          </div>
+            </div>
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Nominee Info</h3>
@@ -477,14 +624,18 @@ export const CreateMisAccountDialog = ({
                     <RequiredLabel>Name</RequiredLabel>
                     <Input {...register(`nominees.${index}.name`)} />
                     {errors.nominees?.[index]?.name ? (
-                      <p className="text-sm text-destructive">{errors.nominees[index]?.name?.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.nominees[index]?.name?.message}
+                      </p>
                     ) : null}
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Phone</RequiredLabel>
                     <Input {...register(`nominees.${index}.phone`)} />
                     {errors.nominees?.[index]?.phone ? (
-                      <p className="text-sm text-destructive">{errors.nominees[index]?.phone?.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.nominees[index]?.phone?.message}
+                      </p>
                     ) : null}
                   </div>
                   <div className="space-y-2">
@@ -521,7 +672,9 @@ export const CreateMisAccountDialog = ({
                     <Label>Aadhaar</Label>
                     <Input {...register(`nominees.${index}.aadhaar`)} />
                     {errors.nominees?.[index]?.aadhaar ? (
-                      <p className="text-sm text-destructive">{errors.nominees[index]?.aadhaar?.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.nominees[index]?.aadhaar?.message}
+                      </p>
                     ) : null}
                   </div>
                   <div className="space-y-2">
@@ -535,7 +688,9 @@ export const CreateMisAccountDialog = ({
                       }}
                     />
                     {errors.nominees?.[index]?.pan ? (
-                      <p className="text-sm text-destructive">{errors.nominees[index]?.pan?.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.nominees[index]?.pan?.message}
+                      </p>
                     ) : null}
                   </div>
                 </div>
@@ -545,21 +700,32 @@ export const CreateMisAccountDialog = ({
               type="button"
               variant="outline"
               onClick={() =>
-                append({ name: "", phone: "", relation: "", customRelation: "", address: "", aadhaar: "", pan: "" })
+                append({
+                  name: "",
+                  phone: "",
+                  relation: "",
+                  customRelation: "",
+                  address: "",
+                  aadhaar: "",
+                  pan: "",
+                })
               }
             >
               Add Nominee
             </Button>
-          </div>
+            </div>
 
-          <div className="space-y-3">
+          {mode === "create" ? (
+            <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">MIS Details</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <RequiredLabel>Project Type</RequiredLabel>
                 <Select
                   value={selectedProjectTypeId}
-                  onValueChange={(value) => setValue("mis.projectTypeId", value, { shouldValidate: true })}
+                  onValueChange={(value) =>
+                    setValue("mis.projectTypeId", value, { shouldValidate: true })
+                  }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select project type" />
@@ -578,24 +744,45 @@ export const CreateMisAccountDialog = ({
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Deposit Amount</RequiredLabel>
-                <Input type="number" step="0.01" {...register("mis.depositAmount", { valueAsNumber: true })} />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Enter deposit amount"
+                  {...register("mis.depositAmount", { valueAsNumber: true })}
+                />
                 {errors.mis?.depositAmount ? (
                   <p className="text-sm text-destructive">{errors.mis.depositAmount.message}</p>
                 ) : null}
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Start Date</RequiredLabel>
-                <Input type="date" {...register("mis.startDate")} />
+                <Input type="date" placeholder="Select start date" {...register("mis.startDate")} />
               </div>
             </div>
-          </div>
+            {selectedProjectType &&
+            typeof depositAmount === "number" &&
+            !Number.isNaN(depositAmount) &&
+            depositAmount > 0 &&
+            depositAmount < selectedProjectTypeMinimumAmount ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Deposit amount is below this plan&apos;s minimum of Rs.{" "}
+                {selectedProjectTypeMinimumAmount.toFixed(2)}.
+              </div>
+            ) : null}
+            </div>
+          ) : null}
 
-          <div className="space-y-3">
+          {mode === "create" ? (
+            <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Payment Info</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel>Initial Payment Amount</RequiredLabel>
-                <Input type="number" step="0.01" {...register("payment.amount", { valueAsNumber: true })} />
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register("payment.amount", { valueAsNumber: true })}
+                />
                 {errors.payment?.amount ? (
                   <p className="text-sm text-destructive">{errors.payment.amount.message}</p>
                 ) : null}
@@ -646,7 +833,8 @@ export const CreateMisAccountDialog = ({
                 </>
               )}
             </div>
-          </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
@@ -654,7 +842,10 @@ export const CreateMisAccountDialog = ({
             {documents.length > 0 ? (
               <div className="space-y-2">
                 {documents.map((document, index) => (
-                  <div key={`${document.file.name}-${index}`} className="rounded-md border p-2 space-y-2">
+                  <div
+                    key={`${document.file.name}-${index}`}
+                    className="rounded-md border p-2 space-y-2"
+                  >
                     <p className="text-xs text-muted-foreground">Original: {document.file.name}</p>
                     <div className="flex gap-2">
                       <Input
@@ -662,7 +853,9 @@ export const CreateMisAccountDialog = ({
                         onChange={(event) =>
                           setDocuments((prev) =>
                             prev.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, displayName: event.target.value } : item,
+                              itemIndex === index
+                                ? { ...item, displayName: event.target.value }
+                                : item,
                             ),
                           )
                         }
@@ -670,7 +863,9 @@ export const CreateMisAccountDialog = ({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                        onClick={() =>
+                          setDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))
+                        }
                       >
                         Remove
                       </Button>
@@ -681,29 +876,84 @@ export const CreateMisAccountDialog = ({
             ) : null}
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
+          {mode === "create" ? (
+            <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Project Type</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Selected Project Type
+              </p>
               <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Name</span><span className="font-medium text-right">{selectedProjectType?.name ?? "N/A"}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Duration</span><span className="font-medium text-right">{selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Minimum Amount</span><span className="font-medium text-right">{formatCurrency(selectedProjectTypeMinimumAmount)}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Interest Config</span><span className="font-medium text-right">{interestTypePreview}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Name</span>
+                  <span className="font-medium text-right">
+                    {selectedProjectType?.name ?? "N/A"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Duration</span>
+                  <span className="font-medium text-right">
+                    {selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Minimum Amount</span>
+                  <span className="font-medium text-right">
+                    {formatCurrency(selectedProjectTypeMinimumAmount)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Interest Config</span>
+                  <span className="font-medium text-right">{interestTypePreview}</span>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Calculation Preview</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Calculation Preview
+              </p>
               <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Monthly Interest</span><span className="font-semibold text-right">{formatCurrency(monthlyInterestPreview)}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Maturity Date</span><span className="font-medium text-right">{maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Total Interest</span><span className="font-medium text-right">{formatCurrency(totalInterestPreview)}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Principal Return</span><span className="font-medium text-right">{formatCurrency(Number(depositAmount || 0))}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Total Return</span><span className="font-semibold text-right text-emerald-700">{formatCurrency(totalReturnPreview)}</span></div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2"><span className="text-muted-foreground">Remaining Deposit</span><span className="font-medium text-right">{formatCurrency(Math.max(0, depositAmount - initialPaymentAmount))}</span></div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Monthly Interest</span>
+                  <span className="font-semibold text-right">
+                    {formatCurrency(monthlyInterestPreview)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Maturity Date</span>
+                  <span className="font-medium text-right">
+                    {maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Total Interest</span>
+                  <span className="font-medium text-right">
+                    {formatCurrency(totalInterestPreview)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Principal Return</span>
+                  <span className="font-medium text-right">
+                    {formatCurrency(Number(depositAmount || 0))}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Total Return</span>
+                  <span className="font-semibold text-right text-emerald-700">
+                    {formatCurrency(totalReturnPreview)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                  <span className="text-muted-foreground">Remaining Deposit</span>
+                  <span className="font-medium text-right">
+                    {formatCurrency(Math.max(0, depositAmount - initialPaymentAmount))}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Future Interest Schedule</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Future Interest Schedule
+              </p>
               <div className="max-h-28 overflow-y-auto rounded-md border bg-background px-3 py-2 text-xs">
                 {schedulePreview.length === 0 ? (
                   <p className="text-muted-foreground">Select project type to preview schedule.</p>
@@ -716,14 +966,22 @@ export const CreateMisAccountDialog = ({
                 )}
               </div>
             </div>
-          </div>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending || projectTypes.length === 0}>
-              Create MIS Account
+            <Button
+              type="submit"
+              disabled={
+                mutation.isPending ||
+                updateMutation.isPending ||
+                (mode === "create" && projectTypes.length === 0)
+              }
+            >
+              {mode === "edit" ? "Save Changes" : "Create MIS Account"}
             </Button>
           </div>
         </form>

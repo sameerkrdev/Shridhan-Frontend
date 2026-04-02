@@ -1,14 +1,26 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { useAddMisDepositMutation } from "@/hooks/useMisApi";
 import { toast } from "sonner";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorMessage, getApiValidationErrors } from "@/lib/apiError";
 
 const schema = z
   .object({
@@ -21,15 +33,25 @@ const schema = z
   })
   .superRefine((payload, ctx) => {
     if (payload.paymentMethod === "UPI") {
-      if (!payload.upiId) ctx.addIssue({ code: "custom", path: ["upiId"], message: "UPI ID is required" });
+      if (!payload.upiId)
+        ctx.addIssue({ code: "custom", path: ["upiId"], message: "UPI ID is required" });
       if (!payload.transactionId) {
-        ctx.addIssue({ code: "custom", path: ["transactionId"], message: "Transaction ID is required" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["transactionId"],
+          message: "Transaction ID is required",
+        });
       }
     }
     if (payload.paymentMethod === "CHEQUE") {
-      if (!payload.bankName) ctx.addIssue({ code: "custom", path: ["bankName"], message: "Bank name is required" });
+      if (!payload.bankName)
+        ctx.addIssue({ code: "custom", path: ["bankName"], message: "Bank name is required" });
       if (!payload.chequeNumber) {
-        ctx.addIssue({ code: "custom", path: ["chequeNumber"], message: "Cheque number is required" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["chequeNumber"],
+          message: "Cheque number is required",
+        });
       }
     }
   });
@@ -43,14 +65,20 @@ interface AddMisDepositDialogProps {
   misId: string;
 }
 
-export const AddMisDepositDialog = ({ open, onOpenChange, societyId, misId }: AddMisDepositDialogProps) => {
+export const AddMisDepositDialog = ({
+  open,
+  onOpenChange,
+  societyId,
+  misId,
+}: AddMisDepositDialogProps) => {
   const mutation = useAddMisDepositMutation(societyId, misId);
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
+    setError,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,7 +92,7 @@ export const AddMisDepositDialog = ({ open, onOpenChange, societyId, misId }: Ad
     },
   });
 
-  const paymentMethod = watch("paymentMethod");
+  const paymentMethod = useWatch({ control, name: "paymentMethod" });
 
   const onSubmit = async (values: FormData) => {
     try {
@@ -73,6 +101,10 @@ export const AddMisDepositDialog = ({ open, onOpenChange, societyId, misId }: Ad
       reset();
       onOpenChange(false);
     } catch (error) {
+      const validationErrors = getApiValidationErrors(error);
+      Object.entries(validationErrors).forEach(([field, message]) => {
+        setError(field as keyof FormData, { type: "server", message });
+      });
       toast.error(getApiErrorMessage(error, "Failed to record deposit"));
     }
   };
@@ -88,14 +120,18 @@ export const AddMisDepositDialog = ({ open, onOpenChange, societyId, misId }: Ad
           <div className="space-y-2">
             <RequiredLabel>Amount</RequiredLabel>
             <Input type="number" step="0.01" {...register("amount", { valueAsNumber: true })} />
-            {errors.amount ? <p className="text-sm text-destructive">{errors.amount.message}</p> : null}
+            {errors.amount ? (
+              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
             <RequiredLabel>Payment Method</RequiredLabel>
             <Select
               value={paymentMethod}
-              onValueChange={(value) => setValue("paymentMethod", value as "UPI" | "CASH" | "CHEQUE")}
+              onValueChange={(value) =>
+                setValue("paymentMethod", value as "UPI" | "CASH" | "CHEQUE")
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -113,12 +149,16 @@ export const AddMisDepositDialog = ({ open, onOpenChange, societyId, misId }: Ad
               <div className="space-y-2">
                 <RequiredLabel>Transaction ID</RequiredLabel>
                 <Input {...register("transactionId")} />
-                {errors.transactionId ? <p className="text-sm text-destructive">{errors.transactionId.message}</p> : null}
+                {errors.transactionId ? (
+                  <p className="text-sm text-destructive">{errors.transactionId.message}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <RequiredLabel>UPI ID</RequiredLabel>
                 <Input {...register("upiId")} />
-                {errors.upiId ? <p className="text-sm text-destructive">{errors.upiId.message}</p> : null}
+                {errors.upiId ? (
+                  <p className="text-sm text-destructive">{errors.upiId.message}</p>
+                ) : null}
               </div>
             </>
           ) : null}

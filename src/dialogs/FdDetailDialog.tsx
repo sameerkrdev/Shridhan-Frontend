@@ -4,8 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFdDetailQuery } from "@/hooks/useFixedDepositApi";
+import { useProjectTypesQuery } from "@/hooks/useFixedDepositApi";
 import { formatDate } from "@/lib/dateFormat";
 import { AddTransactionDialog } from "@/dialogs/AddTransactionDialog";
+import { CreateFdAccountDialog } from "@/dialogs/CreateFdAccountDialog";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 interface FdDetailDialogProps {
   open: boolean;
@@ -34,7 +37,9 @@ export const FdDetailDialog = ({
   fixedDepositId,
 }: FdDetailDialogProps) => {
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const { data, isLoading } = useFdDetailQuery(societyId, fixedDepositId, open);
+  const { data: projectTypes = [] } = useProjectTypesQuery(societyId);
 
   const totalCredit = (data?.transactions ?? [])
     .filter((transaction) => transaction.type === "CREDIT")
@@ -52,10 +57,17 @@ export const FdDetailDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[1040px]">
           <DialogHeader>
-            <DialogTitle>FD Account Details</DialogTitle>
-            <DialogDescription>
-              Customer, nominee, plan details, and transaction history.
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <DialogTitle>FD Account Details</DialogTitle>
+                <DialogDescription>
+                  Customer, nominee, plan details, and transaction history.
+                </DialogDescription>
+              </div>
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(true)}>
+                Edit Account
+              </Button>
+            </div>
           </DialogHeader>
 
           {isLoading ? (
@@ -204,18 +216,36 @@ export const FdDetailDialog = ({
                   </Table>
                 </div>
               </div>
+
+              <ActivityHistory
+                societyId={societyId}
+                entityType="FD_ACCOUNT"
+                entityId={data.id}
+              />
             </div>
           )}
         </DialogContent>
       </Dialog>
 
       {fixedDepositId ? (
-        <AddTransactionDialog
-          open={isAddTransactionOpen}
-          onOpenChange={setIsAddTransactionOpen}
-          societyId={societyId}
-          fixedDepositId={fixedDepositId}
-        />
+        <>
+          <AddTransactionDialog
+            open={isAddTransactionOpen}
+            onOpenChange={setIsAddTransactionOpen}
+            societyId={societyId}
+            fixedDepositId={fixedDepositId}
+          />
+          {data ? (
+            <CreateFdAccountDialog
+              open={isEditOpen}
+              onOpenChange={setIsEditOpen}
+              societyId={societyId}
+              projectTypes={projectTypes}
+              mode="edit"
+              initialData={data}
+            />
+          ) : null}
+        </>
       ) : null}
     </>
   );
