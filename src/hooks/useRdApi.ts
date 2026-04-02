@@ -138,6 +138,31 @@ export const usePayRdMutation = (societyId: string, rdId: string) => {
   });
 };
 
+export const usePayRdForAnyMutation = (societyId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: {
+      rdId: string;
+      amount: number;
+      months?: number[];
+      skipFinePolicy?: "none" | "all" | "selected";
+      skipFineMonths?: number[];
+      paymentMethod?: "UPI" | "CASH" | "CHEQUE";
+      transactionId?: string;
+      upiId?: string;
+      bankName?: string;
+      chequeNumber?: string;
+    }) => {
+      const { rdId, ...payload } = variables;
+      return payRd(societyId, rdId, payload);
+    },
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["rd-detail", societyId, variables.rdId] });
+      void queryClient.invalidateQueries({ queryKey: ["rd-accounts", societyId] });
+    },
+  });
+};
+
 export const useWithdrawRdMutation = (societyId: string, rdId: string) => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -119,7 +119,7 @@ export interface CreateProjectTypePayload {
 }
 
 export interface CreateFdAccountPayload {
-  referrerMembershipId?: string;
+    referrerMembershipId: string;
   customer: {
     fullName: string;
     phone: string;

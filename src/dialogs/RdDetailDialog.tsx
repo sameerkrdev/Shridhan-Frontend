@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useRdDetailQuery } from "@/hooks/useRdApi";
 import { formatDate } from "@/lib/dateFormat";
 import { RdPayDialog } from "@/dialogs/RdPayDialog";
+import { AddRdTransactionDialog } from "@/dialogs/AddRdTransactionDialog";
 import { RdWithdrawDialog } from "@/dialogs/RdWithdrawDialog";
 import { hasPermission } from "@/components/Can";
 import { useAuthSessionStore } from "@/store/authSessionStore";
@@ -28,6 +29,7 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions ?? []);
   const canPay = hasPermission(permissions, "recurring_deposit.pay");
+  const [addTxOpen, setAddTxOpen] = useState(false);
   const canWithdraw = hasPermission(permissions, "recurring_deposit.withdraw");
   const { data, isLoading } = useRdDetailQuery(societyId, rdId, open);
 
@@ -176,9 +178,14 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
 
               <div className="flex flex-wrap gap-2">
                 {canPay && data.status === "ACTIVE" ? (
-                  <Button type="button" onClick={() => setPayOpen(true)}>
-                    Pay installment
-                  </Button>
+                  <>
+                    <Button type="button" onClick={() => setPayOpen(true)}>
+                      Pay installment
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setAddTxOpen(true)}>
+                      Add transaction
+                    </Button>
+                  </>
                 ) : null}
                 {canWithdraw && data.status === "ACTIVE" ? (
                   <Button type="button" variant="secondary" onClick={() => setWithdrawOpen(true)}>
@@ -193,6 +200,12 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
 
       {rdId ? (
         <>
+          <AddRdTransactionDialog
+            open={addTxOpen}
+            onOpenChange={setAddTxOpen}
+            societyId={societyId}
+            recurringDepositId={rdId}
+          />
           <RdPayDialog open={payOpen} onOpenChange={setPayOpen} societyId={societyId} rdId={rdId} />
           <RdWithdrawDialog
             open={withdrawOpen}

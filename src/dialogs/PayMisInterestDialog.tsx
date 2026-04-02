@@ -53,6 +53,7 @@ interface PayMisInterestDialogProps {
   misId: string;
   duration: number;
   monthlyInterest: number;
+  pendingMonths?: number[];
 }
 
 export const PayMisInterestDialog = ({
@@ -62,6 +63,7 @@ export const PayMisInterestDialog = ({
   misId,
   duration,
   monthlyInterest,
+  pendingMonths = [],
 }: PayMisInterestDialogProps) => {
   const mutation = usePayMisInterestMutation(societyId, misId);
   const {
@@ -75,7 +77,7 @@ export const PayMisInterestDialog = ({
     resolver: zodResolver(schema),
     defaultValues: {
       mode: "single",
-      month: 1,
+      month: undefined,
       monthsCsv: "",
       amount: monthlyInterest,
       paymentMethod: "CASH",
@@ -89,18 +91,31 @@ export const PayMisInterestDialog = ({
   const mode = watch("mode");
   const paymentMethod = watch("paymentMethod");
   const monthsCsv = watch("monthsCsv") ?? "";
+  const pendingMonthOptions = useMemo(() => {
+    const base = pendingMonths.length > 0 ? pendingMonths : Array.from({ length: duration }).map((_, i) => i + 1);
+    return base.filter((m) => m >= 1 && m <= duration);
+  }, [duration, pendingMonths]);
 
-  const parsedMonths = useMemo(
-    () =>
-      monthsCsv
-        .split(",")
-        .map((value) => Number(value.trim()))
-        .filter((value) => Number.isInteger(value) && value > 0),
-    [monthsCsv],
-  );
+  const parsedMonths = useMemo(() => {
+    if (!monthsCsv.trim()) return [];
+    return monthsCsv
+      .split(",")
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0);
+  }, [monthsCsv]);
 
   const onSubmit = async (values: FormData) => {
     try {
+      const selectedMonths = values.mode === "single" ? [values.month].filter((v): v is number => v !== undefined) : parsedMonths;
+      if (selectedMonths.length === 0) {
+        toast.error("Please select at least one month");
+        return;
+      }
+      const requiredAmount = monthlyInterest * selectedMonths.length;
+      if (Math.abs(values.amount - requiredAmount) > 0.0001) {
+        toast.error(`Amount must be exactly Rs. ${requiredAmount.toFixed(2)} for selected month(s)`);
+        return;
+      }
       const payload =
         values.mode === "single"
           ? {
@@ -136,7 +151,7 @@ export const PayMisInterestDialog = ({
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Pay Interest</DialogTitle>
-          <DialogDescription>Pay single-month, split-month, or multiple-month interest.</DialogDescription>
+          <DialogDescription>Pay pending month interest. Fully paid months are disabled.</DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
@@ -155,13 +170,53 @@ export const PayMisInterestDialog = ({
           {mode === "single" ? (
             <div className="space-y-2">
               <RequiredLabel>Month</RequiredLabel>
-              <Input type="number" min={1} max={duration} {...register("month", { valueAsNumber: true })} />
+              <Select
+                value={watch("month") ? String(watch("month")) : ""}
+                onValueChange={(value) => setValue("month", Number(value), { shouldValidate: true })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select pending month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: duration }).map((_, idx) => {
+                    const month = idx + 1;
+                    const enabled = pendingMonthOptions.includes(month);
+                    return (
+                      <SelectItem key={month} value={String(month)} disabled={!enabled}>
+                        Month {month} {enabled ? "" : "(Paid)"}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
               {errors.month ? <p className="text-sm text-destructive">{errors.month.message}</p> : null}
             </div>
           ) : (
             <div className="space-y-2">
-              <RequiredLabel>Months (comma separated)</RequiredLabel>
-              <Input placeholder="1,2,3" {...register("monthsCsv")} />
+              <RequiredLabel>Months</RequiredLabel>
+              <div className="grid grid-cols-2 gap-2 rounded-md border p-3 max-h-48 overflow-auto">
+                {Array.from({ length: duration }).map((_, idx) => {
+                  const month = idx + 1;
+                  const enabled = pendingMonthOptions.includes(month);
+                  const checked = parsedMonths.includes(month);
+                  return (
+                    <label key={month} className={`flex items-center gap-2 text-sm ${enabled ? "" : "text-muted-foreground"}`}>
+                      <input
+                        type="checkbox"
+                        disabled={!enabled}
+                        checked={checked}
+                        onChange={(event) => {
+                          const next = new Set(parsedMonths);
+                          if (event.target.checked) next.add(month);
+                          else next.delete(month);
+                          setValue("monthsCsv", Array.from(next).sort((a, b) => a - b).join(","), { shouldValidate: true });
+                        }}
+                      />
+                      <span>Month {month}</span>
+                    </label>
+                  );
+                })}
+              </div>
               {errors.monthsCsv ? <p className="text-sm text-destructive">{errors.monthsCsv.message}</p> : null}
             </div>
           )}
@@ -171,7 +226,7 @@ export const PayMisInterestDialog = ({
             <Input type="number" step="0.01" {...register("amount", { valueAsNumber: true })} />
             {errors.amount ? <p className="text-sm text-destructive">{errors.amount.message}</p> : null}
             <p className="text-xs text-muted-foreground">
-              Monthly interest: Rs. {monthlyInterest.toFixed(2)} | Duration: {duration} months
+              Monthly interest: Rs. {monthlyInterest.toFixed(2)} | Selected months: {mode === "single" ? (watch("month") ?? 0) ? 1 : 0 : parsedMonths.length}
             </p>
           </div>
 

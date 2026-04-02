@@ -99,7 +99,7 @@ export const AddTransactionDialog = ({
     defaultValues: {
       fixedDepositId: fixedDepositId ?? "",
       type: "CREDIT",
-      amount: 0,
+      amount: undefined as unknown as number,
       paymentMethod: "CASH",
       transactionId: "",
       upiId: "",
@@ -239,7 +239,12 @@ export const AddTransactionDialog = ({
 
             <div className="space-y-2">
               <RequiredLabel>Amount</RequiredLabel>
-              <Input type="number" step="0.01" {...register("amount", { valueAsNumber: true })} />
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Enter amount"
+                {...register("amount", { valueAsNumber: true })}
+              />
               {errors.amount ? <p className="text-sm text-destructive">{errors.amount.message}</p> : null}
             </div>
           </div>

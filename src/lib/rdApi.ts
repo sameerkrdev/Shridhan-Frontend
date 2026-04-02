@@ -196,7 +196,7 @@ export const listRdProjectTypes = async (
 export const createRdAccount = async (
   societyId: string,
   payload: {
-    referrerMembershipId?: string;
+    referrerMembershipId: string;
     customer: {
       fullName: string;
       phone: string;

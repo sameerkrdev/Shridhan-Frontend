@@ -73,6 +73,7 @@ type FilterFieldKey =
 type SortField = "id" | "customer_name" | "phone" | "deposit_amount" | "monthly_interest" | "maturity_date" | "status";
 type SortOrder = "asc" | "desc";
 type MisColumnKey =
+  | "mis_id"
   | "customer"
   | "phone"
   | "deposit_amount"
@@ -90,6 +91,7 @@ interface FilterRule {
 
 const MIS_COLUMN_VISIBILITY_STORAGE_KEY = "mis.accountsTable.visibleColumns.v1";
 const DEFAULT_VISIBLE_MIS_COLUMNS: Record<MisColumnKey, boolean> = {
+  mis_id: true,
   customer: true,
   phone: true,
   deposit_amount: true,
@@ -99,6 +101,7 @@ const DEFAULT_VISIBLE_MIS_COLUMNS: Record<MisColumnKey, boolean> = {
   actions: true,
 };
 const MIS_COLUMN_OPTIONS: Array<{ key: MisColumnKey; label: string }> = [
+  { key: "mis_id", label: "MIS Account ID" },
   { key: "customer", label: "Customer" },
   { key: "phone", label: "Phone" },
   { key: "deposit_amount", label: "Deposit Amount" },
@@ -260,6 +263,7 @@ const MisPage = () => {
     try {
       const parsed = JSON.parse(raw) as Partial<Record<MisColumnKey, unknown>>;
       return {
+        mis_id: typeof parsed.mis_id === "boolean" ? parsed.mis_id : DEFAULT_VISIBLE_MIS_COLUMNS.mis_id,
         customer: typeof parsed.customer === "boolean" ? parsed.customer : DEFAULT_VISIBLE_MIS_COLUMNS.customer,
         phone: typeof parsed.phone === "boolean" ? parsed.phone : DEFAULT_VISIBLE_MIS_COLUMNS.phone,
         deposit_amount:
@@ -594,6 +598,14 @@ const MisPage = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                {visibleColumns.mis_id ? (
+                  <TableHead>
+                    <button type="button" className="group inline-flex items-center" onClick={() => handleSortClick("id")}>
+                      MIS ID
+                      {renderSortIcon("id")}
+                    </button>
+                  </TableHead>
+                ) : null}
                 {visibleColumns.customer ? (
                   <TableHead>
                     <button type="button" className="group inline-flex items-center" onClick={() => handleSortClick("customer_name")}>
@@ -667,6 +679,7 @@ const MisPage = () => {
               ) : (
                 filteredAccountRows.map((account) => (
                   <TableRow key={account.id}>
+                    {visibleColumns.mis_id ? <TableCell className="font-medium">{account.id}</TableCell> : null}
                     {visibleColumns.customer ? <TableCell className="font-medium">{account.customer.fullName}</TableCell> : null}
                     {visibleColumns.phone ? <TableCell>{account.customer.phone}</TableCell> : null}
                     {visibleColumns.deposit_amount ? <TableCell>{formatCurrency(account.depositAmount)}</TableCell> : null}

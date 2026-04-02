@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,21 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
   const [isPayInterestOpen, setIsPayInterestOpen] = useState(false);
   const [isReturnPrincipalOpen, setIsReturnPrincipalOpen] = useState(false);
   const { data, isLoading } = useMisDetailQuery(societyId, misId, open);
+  const remainingDeposit = Number(data?.summary.remainingDeposit ?? 0);
+  const canAddDeposit = (data?.status === "PENDING_DEPOSIT" || data?.status === "ACTIVE") && remainingDeposit > 0;
+  const canPayInterest = (data?.status === "ACTIVE" || data?.status === "COMPLETED") && (data?.summary.pendingMonths.length ?? 0) > 0;
+  const canReturnPrincipal = useMemo(() => {
+    if (!data) return false;
+    const matured = new Date(data.maturityDate).getTime() <= Date.now();
+    return data.status !== "CLOSED" && remainingDeposit <= 0 && data.summary.pendingMonths.length === 0 && matured;
+  }, [data, remainingDeposit]);
+
+  const InfoItem = ({ label, value }: { label: string; value: string }) => (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className="text-sm font-medium wrap-break-word">{value}</p>
+    </div>
+  );
 
   return (
     <>
@@ -42,7 +57,7 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
           ) : !data ? (
             <p className="text-sm text-muted-foreground">No data found.</p>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div className="rounded-xl border bg-muted/20 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -52,39 +67,33 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
                   <Badge variant={data.status === "ACTIVE" ? "default" : "secondary"}>{data.status}</Badge>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Deposit Amount</p>
-                    <p className="font-semibold">{formatCurrency(data.depositAmount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Monthly Interest</p>
-                    <p className="font-semibold">{formatCurrency(data.monthlyInterest)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Maturity Date</p>
-                    <p className="font-semibold">{formatDate(data.maturityDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Pending Deposit</p>
-                    <p className="font-semibold">{formatCurrency(data.summary.remainingDeposit)}</p>
-                  </div>
+                  <InfoItem label="Project Type" value={data.projectType.name} />
+                  <InfoItem label="Deposit Amount" value={formatCurrency(data.depositAmount)} />
+                  <InfoItem label="Monthly Interest" value={formatCurrency(data.monthlyInterest)} />
+                  <InfoItem label="Maturity Date" value={formatDate(data.maturityDate)} />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border p-4 space-y-2">
-                  <h3 className="font-semibold">Customer</h3>
-                  <p className="text-sm">{data.customer.fullName}</p>
-                  <p className="text-sm text-muted-foreground">{data.customer.phone}</p>
-                  <p className="text-sm text-muted-foreground">{data.customer.email ?? "N/A"}</p>
-                  <p className="text-sm text-muted-foreground">{data.customer.aadhaar ?? "N/A"}</p>
-                  <p className="text-sm text-muted-foreground">{data.customer.pan ?? "N/A"}</p>
+                <div className="rounded-xl border p-4 space-y-4">
+                  <h3 className="font-semibold">Customer Details</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoItem label="Name" value={data.customer.fullName} />
+                    <InfoItem label="Phone" value={data.customer.phone} />
+                    <InfoItem label="Email" value={data.customer.email ?? "N/A"} />
+                    <InfoItem label="Aadhaar" value={data.customer.aadhaar ?? "N/A"} />
+                    <InfoItem label="PAN" value={data.customer.pan ?? "N/A"} />
+                    <InfoItem label="Address" value={data.customer.address ?? "N/A"} />
+                  </div>
                 </div>
-                <div className="rounded-xl border p-4 space-y-2">
-                  <h3 className="font-semibold">Summary</h3>
-                  <p className="text-sm">Deposit Paid: {formatCurrency(data.summary.depositPaid)}</p>
-                  <p className="text-sm">Interest Paid: {formatCurrency(data.summary.interestPaid)}</p>
-                  <p className="text-sm">Pending Months: {data.summary.pendingMonths.join(", ") || "None"}</p>
+                <div className="rounded-xl border p-4 space-y-4">
+                  <h3 className="font-semibold">Financial Summary</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoItem label="Deposit Paid" value={formatCurrency(data.summary.depositPaid)} />
+                    <InfoItem label="Pending Deposit" value={formatCurrency(data.summary.remainingDeposit)} />
+                    <InfoItem label="Interest Paid" value={formatCurrency(data.summary.interestPaid)} />
+                    <InfoItem label="Pending Months" value={data.summary.pendingMonths.join(", ") || "None"} />
+                  </div>
                 </div>
               </div>
 
@@ -142,19 +151,27 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" onClick={() => setIsDepositOpen(true)}>
-                  Add Deposit
-                </Button>
-                <Button type="button" onClick={() => setIsPayInterestOpen(true)}>
-                  Pay Interest
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => setIsReturnPrincipalOpen(true)}
-                  disabled={data.status === "CLOSED"}
-                >
-                  Return Principal
+                {canAddDeposit ? (
+                  <Button type="button" onClick={() => setIsDepositOpen(true)}>
+                    Add Deposit
+                  </Button>
+                ) : null}
+                {canPayInterest ? (
+                  <Button type="button" onClick={() => setIsPayInterestOpen(true)}>
+                    Pay Interest
+                  </Button>
+                ) : null}
+                {canReturnPrincipal ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setIsReturnPrincipalOpen(true)}
+                  >
+                    Return Principal
+                  </Button>
+                ) : null}
+                <Button type="button" variant="outline" disabled title="Edit API will be added next">
+                  Edit Account
                 </Button>
               </div>
 
@@ -164,7 +181,8 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/40">
-                        <TableHead>Date</TableHead>
+                        <TableHead>Last Updated</TableHead>
+                        <TableHead>Payout Date</TableHead>
                         <TableHead>Month</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Expected</TableHead>
@@ -176,13 +194,14 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
                     <TableBody>
                       {data.transactions.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center text-muted-foreground">
                             No transactions found.
                           </TableCell>
                         </TableRow>
                       ) : (
                         data.transactions.map((transaction) => (
                           <TableRow key={transaction.id}>
+                            <TableCell>{formatDate(transaction.updatedAt)}</TableCell>
                             <TableCell>{formatDate(transaction.createdAt)}</TableCell>
                             <TableCell>{transaction.month ?? "N/A"}</TableCell>
                             <TableCell>
@@ -214,6 +233,7 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
             misId={misId}
             duration={data?.projectType.duration ?? 1}
             monthlyInterest={Number(data?.monthlyInterest ?? 0)}
+            pendingMonths={data?.summary.pendingMonths ?? []}
           />
           <ReturnMisPrincipalDialog
             open={isReturnPrincipalOpen}

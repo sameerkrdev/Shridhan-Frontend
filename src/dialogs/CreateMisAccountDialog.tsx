@@ -17,7 +17,7 @@ import { formatDate } from "@/lib/dateFormat";
 
 const schema = z
   .object({
-    referrerMembershipId: z.string().optional(),
+    referrerMembershipId: z.string().min(1, "Referrer member is required"),
     customer: z.object({
       fullName: z.string().trim().min(2, "Full name is required").max(150),
       phone: z.string().regex(/^[6-9]\d{9}$/, "Phone must be a valid 10-digit Indian number"),
@@ -169,7 +169,6 @@ export const CreateMisAccountDialog = ({
     control,
     watch,
     setValue,
-    getValues,
     handleSubmit,
     reset,
     setError,
@@ -190,8 +189,8 @@ export const CreateMisAccountDialog = ({
       nominees: [{ name: "", phone: "", relation: "", customRelation: "", address: "", aadhaar: "", pan: "" }],
       mis: {
         projectTypeId: "",
-        depositAmount: 100000,
-        startDate: new Date().toISOString().slice(0, 10),
+        depositAmount: undefined as unknown as number,
+        startDate: "",
       },
       payment: {
         amount: undefined,
@@ -213,13 +212,8 @@ export const CreateMisAccountDialog = ({
     if (!open) {
       reset();
       setDocuments([]);
-      return;
     }
-    const existingProjectTypeId = getValues("mis.projectTypeId");
-    if (!existingProjectTypeId && projectTypes.length > 0) {
-      setValue("mis.projectTypeId", projectTypes[0].id, { shouldDirty: false });
-    }
-  }, [getValues, open, projectTypes, reset, setValue]);
+  }, [open, reset]);
 
   const selectedProjectTypeId = watch("mis.projectTypeId");
   const depositAmount = watch("mis.depositAmount") ?? 0;
@@ -233,13 +227,11 @@ export const CreateMisAccountDialog = ({
     [projectTypes, selectedProjectTypeId],
   );
   const referrerOptions = useMemo(
-    () => [
-      { value: "none", label: "No referrer" },
-      ...(referrerMembers ?? []).map((member) => ({
+    () =>
+      (referrerMembers ?? []).map((member) => ({
         value: member.id,
         label: `${member.user.name} - ${member.role.name} (${member.user.phone})`,
       })),
-    ],
     [referrerMembers],
   );
 
@@ -317,10 +309,7 @@ export const CreateMisAccountDialog = ({
 
     try {
       const created = await mutation.mutateAsync({
-        referrerMembershipId:
-          values.referrerMembershipId && values.referrerMembershipId !== "none"
-            ? values.referrerMembershipId
-            : undefined,
+        referrerMembershipId: values.referrerMembershipId,
         customer: {
           ...values.customer,
           email: values.customer.email || undefined,
@@ -399,16 +388,17 @@ export const CreateMisAccountDialog = ({
 
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
-            <Label>Referrer Member</Label>
+            <RequiredLabel>Referrer Member</RequiredLabel>
             <SearchableSingleSelectAsync
-              value={watch("referrerMembershipId") || "none"}
-              onChange={(value) =>
-                setValue("referrerMembershipId", value === "none" ? "" : value, { shouldValidate: true })
-              }
+              value={watch("referrerMembershipId") || ""}
+              onChange={(value) => setValue("referrerMembershipId", value, { shouldValidate: true })}
               options={referrerOptions}
-              placeholder="Select referrer member (optional)"
+              placeholder="Select referrer member"
               className="w-full"
             />
+            {errors.referrerMembershipId ? (
+              <p className="text-sm text-destructive">{errors.referrerMembershipId.message}</p>
+            ) : null}
           </div>
 
           <div className="space-y-3">
@@ -578,16 +568,31 @@ export const CreateMisAccountDialog = ({
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Deposit Amount</RequiredLabel>
-                <Input type="number" step="0.01" {...register("mis.depositAmount", { valueAsNumber: true })} />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Enter deposit amount"
+                  {...register("mis.depositAmount", { valueAsNumber: true })}
+                />
                 {errors.mis?.depositAmount ? (
                   <p className="text-sm text-destructive">{errors.mis.depositAmount.message}</p>
                 ) : null}
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Start Date</RequiredLabel>
-                <Input type="date" {...register("mis.startDate")} />
+                <Input type="date" placeholder="Select start date" {...register("mis.startDate")} />
               </div>
             </div>
+            {selectedProjectType &&
+            typeof depositAmount === "number" &&
+            !Number.isNaN(depositAmount) &&
+            depositAmount > 0 &&
+            depositAmount < selectedProjectTypeMinimumAmount ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Deposit amount is below this plan&apos;s minimum of Rs.{" "}
+                {selectedProjectTypeMinimumAmount.toFixed(2)}.
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3">

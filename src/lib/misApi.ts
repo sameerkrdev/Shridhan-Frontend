@@ -51,6 +51,7 @@ export interface MisTransaction {
   chequeNumber?: string | null;
   bankName?: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface MisDocument {
@@ -160,7 +161,7 @@ export const listMisProjectTypes = async (
 export const createMisAccount = async (
   societyId: string,
   payload: {
-    referrerMembershipId?: string;
+    referrerMembershipId: string;
     customer: {
       fullName: string;
       phone: string;
