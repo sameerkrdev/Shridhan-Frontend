@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -215,7 +215,6 @@ export const CreateMisAccountDialog = ({
   const {
     register,
     control,
-    watch,
     setValue,
     handleSubmit,
     reset,
@@ -269,7 +268,6 @@ export const CreateMisAccountDialog = ({
   useEffect(() => {
     if (!open) {
       reset();
-      setDocuments([]);
       return;
     }
 
@@ -308,16 +306,16 @@ export const CreateMisAccountDialog = ({
           chequeNumber: "",
         },
       });
-      setDocuments([]);
     }
   }, [initialData, mode, open, reset]);
 
-  const selectedProjectTypeId = watch("mis.projectTypeId");
-  const depositAmount = watch("mis.depositAmount") ?? 0;
-  const startDate = watch("mis.startDate");
-  const initialPaymentAmount = watch("payment.amount") ?? 0;
-  const paymentMethod = watch("payment.paymentMethod");
-  const nomineeValues = watch("nominees");
+  const selectedProjectTypeId = useWatch({ control, name: "mis.projectTypeId" });
+  const depositAmount = useWatch({ control, name: "mis.depositAmount" }) ?? 0;
+  const startDate = useWatch({ control, name: "mis.startDate" });
+  const initialPaymentAmount = useWatch({ control, name: "payment.amount" }) ?? 0;
+  const paymentMethod = useWatch({ control, name: "payment.paymentMethod" });
+  const nomineeValues = useWatch({ control, name: "nominees" });
+  const referrerMembershipId = useWatch({ control, name: "referrerMembershipId" });
 
   const selectedProjectType = useMemo(
     () => projectTypes.find((projectType) => projectType.id === selectedProjectTypeId),
@@ -439,8 +437,17 @@ export const CreateMisAccountDialog = ({
         return;
       }
 
+      const referrerMembershipId = values.referrerMembershipId?.trim();
+      if (!referrerMembershipId) {
+        setError("referrerMembershipId", {
+          type: "manual",
+          message: "Referrer member is required",
+        });
+        return;
+      }
+
       const created = await mutation.mutateAsync({
-        referrerMembershipId: values.referrerMembershipId,
+        referrerMembershipId: referrerMembershipId,
         customer: {
           ...values.customer,
           email: values.customer.email || undefined,
@@ -500,19 +507,8 @@ export const CreateMisAccountDialog = ({
       onOpenChange(false);
     } catch (error) {
       const validationErrors = getApiValidationErrors(error);
-      validationErrors.forEach((issue) => {
-        const fieldPath = issue.path.join(".") as
-          | "referrerMembershipId"
-          | "customer.fullName"
-          | "customer.phone"
-          | "customer.email"
-          | "customer.address"
-          | "customer.aadhaar"
-          | "customer.pan"
-          | "mis.projectTypeId"
-          | "mis.depositAmount"
-          | "mis.startDate";
-        setError(fieldPath, { type: "server", message: issue.message });
+      Object.entries(validationErrors).forEach(([field, message]) => {
+        setError(field as keyof FormData, { type: "server", message });
       });
       toast.error(getApiErrorMessage(error, "Failed to create MIS account"));
     }
@@ -528,8 +524,15 @@ export const CreateMisAccountDialog = ({
     event.target.value = "";
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setDocuments([]);
+    }
+    onOpenChange(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit MIS Account" : "Create MIS Account"}</DialogTitle>
@@ -544,7 +547,7 @@ export const CreateMisAccountDialog = ({
             <div className="space-y-2">
             <RequiredLabel>Referrer Member</RequiredLabel>
             <SearchableSingleSelectAsync
-              value={watch("referrerMembershipId") || ""}
+              value={referrerMembershipId || ""}
               onChange={(value) =>
                 setValue("referrerMembershipId", value, { shouldValidate: true })
               }
