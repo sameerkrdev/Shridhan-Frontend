@@ -12,6 +12,7 @@ import { RdWithdrawDialog } from "@/dialogs/RdWithdrawDialog";
 import { CreateRdAccountDialog } from "@/dialogs/CreateRdAccountDialog";
 import { hasPermission } from "@/components/Can";
 import { useAuthSessionStore } from "@/store/authSessionStore";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -211,6 +212,11 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                   </Table>
                 </div>
               </div>
+              <ActivityHistory
+                societyId={societyId}
+                entityType="RD_ACCOUNT"
+                entityId={data.id}
+              />
 
             </div>
           )}

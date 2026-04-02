@@ -11,6 +11,7 @@ import { PayMisInterestDialog } from "@/dialogs/PayMisInterestDialog";
 import { ReturnMisPrincipalDialog } from "@/dialogs/ReturnMisPrincipalDialog";
 import { toast } from "sonner";
 import { CreateMisAccountDialog } from "@/dialogs/CreateMisAccountDialog";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -235,6 +236,11 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
                   </Table>
                 </div>
               </div>
+              <ActivityHistory
+                societyId={societyId}
+                entityType="MIS_ACCOUNT"
+                entityId={data.id}
+              />
             </div>
           )}
         </DialogContent>

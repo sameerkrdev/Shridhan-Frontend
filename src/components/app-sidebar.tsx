@@ -77,6 +77,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (hasPermission(permissions, "recurring_deposit.list")) {
       items.push({ title: "Recurring Deposits", url: "/recurring-deposits", icon: IconCoins });
     }
+    if (
+      hasPermission(permissions, "activity.list") ||
+      hasPermission(permissions, "fixed_deposit.list") ||
+      hasPermission(permissions, "mis.list") ||
+      hasPermission(permissions, "recurring_deposit.list")
+    ) {
+      items.push({ title: "Activities", url: "/activities", icon: IconChartBar });
+    }
 
     items.push({ title: "Analytics", url: "#", icon: IconChartBar });
 

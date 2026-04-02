@@ -33,6 +33,7 @@ import { ReturnMisPrincipalDialog } from "@/dialogs/ReturnMisPrincipalDialog";
 import type { MisAccount, MisProjectType } from "@/lib/misApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -771,6 +772,12 @@ const MisPage = () => {
             </Button>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3 mt-8">
+        <h2 className="text-xl font-semibold">Activities</h2>
+        <ActivityHistory societyId={societyId ?? ""} entityType="MIS_ACCOUNT" entityId={null} title="MIS Account Activities" />
+        <ActivityHistory societyId={societyId ?? ""} entityType="MIS_PROJECT_TYPE" entityId={null} title="MIS Project Type Activities" />
       </section>
 
       {societyId ? (

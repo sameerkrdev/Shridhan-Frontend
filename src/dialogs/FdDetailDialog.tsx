@@ -8,6 +8,7 @@ import { useProjectTypesQuery } from "@/hooks/useFixedDepositApi";
 import { formatDate } from "@/lib/dateFormat";
 import { AddTransactionDialog } from "@/dialogs/AddTransactionDialog";
 import { CreateFdAccountDialog } from "@/dialogs/CreateFdAccountDialog";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 interface FdDetailDialogProps {
   open: boolean;
@@ -215,6 +216,12 @@ export const FdDetailDialog = ({
                   </Table>
                 </div>
               </div>
+
+              <ActivityHistory
+                societyId={societyId}
+                entityType="FD_ACCOUNT"
+                entityId={data.id}
+              />
             </div>
           )}
         </DialogContent>

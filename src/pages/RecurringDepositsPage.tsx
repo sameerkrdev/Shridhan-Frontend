@@ -20,6 +20,7 @@ import { AddRdTransactionDialog } from "@/dialogs/AddRdTransactionDialog";
 import type { RdAccount } from "@/lib/rdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { ActivityHistory } from "@/components/ActivityHistory";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -368,6 +369,12 @@ const RecurringDepositsPage = () => {
             </select>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3 mt-8">
+        <h2 className="text-xl font-semibold">Activities</h2>
+        <ActivityHistory societyId={societyId ?? ""} entityType="RD_ACCOUNT" entityId={null} title="RD Account Activities" />
+        <ActivityHistory societyId={societyId ?? ""} entityType="RD_PROJECT_TYPE" entityId={null} title="RD Project Type Activities" />
       </section>
 
       {societyId ? (
