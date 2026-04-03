@@ -14,7 +14,7 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   useCheckUserExistsMutation,
   useLoginMutation,
@@ -23,6 +23,7 @@ import {
 } from "@/hooks/useAuthApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { readRedirectFromSearch, setPendingPostLoginRedirect } from "@/lib/postLoginRedirect";
 
 // -------------------- VALIDATION SCHEMAS --------------------
 const phoneSchema = z.object({
@@ -36,6 +37,7 @@ const otpSchema = z.object({
 // -------------------- MAIN COMPONENT --------------------
 export function LoginFormFields() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setAuthPayload = useAuthSessionStore((state) => state.setAuthPayload);
   const [step, setStep] = React.useState<"login" | "otp">("login");
   const [phone, setPhone] = React.useState("");
@@ -101,6 +103,10 @@ export function LoginFormFields() {
       });
 
       console.log("Logged in:", { phone, otp: values.otp });
+      const pendingRedirect = readRedirectFromSearch(location.search);
+      if (pendingRedirect) {
+        setPendingPostLoginRedirect(pendingRedirect);
+      }
       navigate("/society-selector");
     } catch (error) {
       const message = getApiErrorMessage(error, "Unable to verify OTP");

@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRdDetailQuery } from "@/hooks/useRdApi";
 import { useRdProjectTypesQuery } from "@/hooks/useRdApi";
+import {
+  useApproveRdFineWaiveRequestMutation,
+  useRdFineWaiveRequestsQuery,
+  useRejectRdFineWaiveRequestMutation,
+} from "@/hooks/useRdApi";
 import { formatDate } from "@/lib/dateFormat";
 import { RdPayDialog } from "@/dialogs/RdPayDialog";
 import { AddRdTransactionDialog } from "@/dialogs/AddRdTransactionDialog";
@@ -39,10 +44,14 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions ?? []);
   const canPay = hasPermission(permissions, "recurring_deposit.pay");
+  const canApproveWaive = hasPermission(permissions, "recurring_deposit.approve_fine_waive");
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const canWithdraw = hasPermission(permissions, "recurring_deposit.withdraw");
   const { data, isLoading } = useRdDetailQuery(societyId, rdId, open);
+  const { data: waiveRequests = [] } = useRdFineWaiveRequestsQuery(societyId, rdId, open);
+  const approveWaiveMutation = useApproveRdFineWaiveRequestMutation(societyId);
+  const rejectWaiveMutation = useRejectRdFineWaiveRequestMutation(societyId);
   const { data: projectTypes = [] } = useRdProjectTypesQuery(societyId, { includeArchived: true });
 
   return (
@@ -195,6 +204,7 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                         <TableHead>Amount</TableHead>
                         <TableHead>Principal</TableHead>
                         <TableHead>Fine</TableHead>
+                        <TableHead>Waived fine</TableHead>
                         <TableHead>When</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -205,9 +215,81 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                           <TableCell>{formatCurrency(tx.amount)}</TableCell>
                           <TableCell>{formatCurrency(tx.principalAmount)}</TableCell>
                           <TableCell>{formatCurrency(tx.fineAmount)}</TableCell>
+                          <TableCell>
+                            {formatCurrency(
+                              tx.allocations?.reduce((sum, a) => sum + Number(a.waivedFineAmount ?? 0), 0) ?? 0,
+                            )}
+                          </TableCell>
                           <TableCell>{formatDate(tx.createdAt)}</TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-semibold">Fine waive requests</h3>
+                <div className="rounded-md border overflow-auto max-h-[220px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Scope</TableHead>
+                        <TableHead>Reduce from maturity</TableHead>
+                        <TableHead>Months</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {waiveRequests.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            No fine waive requests.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        waiveRequests.map((request) => (
+                          <TableRow key={request.id}>
+                            <TableCell>{formatDate(request.createdAt)}</TableCell>
+                            <TableCell>{request.status}</TableCell>
+                            <TableCell>{request.scopeType}</TableCell>
+                            <TableCell>{request.reduceFromMaturity ? "Yes" : "No"}</TableCell>
+                            <TableCell>{request.months.map((m) => m.monthIndex).join(", ")}</TableCell>
+                            <TableCell className="space-x-2">
+                              {canApproveWaive && request.status === "PENDING" ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => approveWaiveMutation.mutate(request.id)}
+                                    disabled={approveWaiveMutation.isPending || rejectWaiveMutation.isPending}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() =>
+                                      rejectWaiveMutation.mutate({
+                                        requestId: request.id,
+                                        rejectionReason: "Rejected from RD detail",
+                                      })
+                                    }
+                                    disabled={approveWaiveMutation.isPending || rejectWaiveMutation.isPending}
+                                  >
+                                    Reject
+                                  </Button>
+                                </>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>

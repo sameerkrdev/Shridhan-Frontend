@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -333,6 +334,7 @@ const FixedDepositsPage = () => {
   const [isAddTransactionDialogOpen, setIsAddTransactionDialogOpen] = useState(false);
   const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
   const [selectedFdId, setSelectedFdId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const [expandedFdIds, setExpandedFdIds] = useState<string[]>([]);
   const [filterLogic, setFilterLogic] = useState<FilterLogic>("AND");
   const [filters, setFilters] = useState<FilterRule[]>([]);
@@ -545,6 +547,12 @@ const FixedDepositsPage = () => {
     }
     setCurrentPage(1);
   };
+
+  useEffect(() => {
+    const accountId = searchParams.get("accountId");
+    if (!accountId) return;
+    setSelectedFdId(accountId);
+  }, [searchParams]);
 
   const renderSortIcon = (field: SortField) => {
     if (sortField === field) {

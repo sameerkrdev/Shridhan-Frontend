@@ -4,6 +4,13 @@ export type PaymentMethod = "UPI" | "CASH" | "CHEQUE";
 export type ServiceStatus = "PENDING_DEPOSIT" | "ACTIVE" | "COMPLETED" | "CLOSED";
 export type RdInstallmentStatus = "PENDING" | "OVERDUE" | "PARTIAL" | "PAID";
 export type SkipFinePolicy = "none" | "all" | "selected";
+export type RdFineWaiveRequestStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "INVALIDATED";
+export type RdFineWaiveScopeType = "ALL" | "SELECTED";
 
 export type RdFineCalculationMethod = "FIXED_PER_STREAK_UNIT" | "PROPORTIONAL_PER_HUNDRED";
 
@@ -76,6 +83,9 @@ export interface RdTransaction {
     installmentId: string;
     principalApplied: string;
     fineApplied: string;
+    waivedFineAmount?: string;
+    waivedByRequestId?: string | null;
+    waivedApprovedByMembershipId?: string | null;
   }>;
 }
 
@@ -101,9 +111,35 @@ export interface RdDetail extends RdAccount {
     expectedMaturityPayout: string;
     grossMaturityPayout: string;
     totalDeferredFines: string;
+    totalMarkedWaiveFromMaturity?: string;
     netMaturityPayoutAfterDeferredFines: string;
+    netMaturityPayoutAfterMarkedWaives?: string;
     totalPrincipalExpected: string;
   };
+}
+
+export interface RdFineWaiveRequest {
+  id: string;
+  recurringDepositId: string;
+  requestedByMembershipId: string;
+  scopeType: RdFineWaiveScopeType;
+  reason?: string | null;
+  expiresAt: string;
+  status: RdFineWaiveRequestStatus;
+  reduceFromMaturity: boolean;
+  approvedByMembershipId?: string | null;
+  approvedAt?: string | null;
+  rejectedByMembershipId?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  invalidationReason?: "PAID_ALREADY" | "MANUAL_REJECT" | "EXPIRED" | null;
+  months: Array<{
+    id: string;
+    monthIndex: number;
+    waivedFineAmount: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PaginatedRdAccounts {
@@ -133,6 +169,8 @@ export interface RdPreviewPayResponse {
   amount: string;
   skipFinePolicy: SkipFinePolicy;
   skipFineMonths: number[];
+  waiveRequestId?: string | null;
+  reduceFromMaturity?: boolean;
   allocations: Array<{
     installmentId: string;
     monthIndex: number;
@@ -318,6 +356,7 @@ export const previewRdPayment = async (
     months?: number[];
     skipFinePolicy?: SkipFinePolicy;
     skipFineMonths?: number[];
+    waiveRequestId?: string;
   },
 ) => {
   const { data } = await apiClient.post<RdPreviewPayResponse>(
@@ -336,6 +375,7 @@ export const payRd = async (
     months?: number[];
     skipFinePolicy?: SkipFinePolicy;
     skipFineMonths?: number[];
+    waiveRequestId?: string;
     paymentMethod?: PaymentMethod;
     transactionId?: string;
     upiId?: string;
@@ -356,6 +396,7 @@ export const withdrawRd = async (
   rdId: string,
   payload?: {
     deductDeferredFinesFromMaturity?: boolean;
+    fineDeductionMode?: "all" | "marked_only";
     paymentMethod?: PaymentMethod;
     transactionId?: string;
     upiId?: string;
@@ -365,6 +406,68 @@ export const withdrawRd = async (
 ) => {
   const { data } = await apiClient.post(
     `/recurring-deposits/${rdId}/withdraw`,
+    payload ?? {},
+    societyHeader(societyId),
+  );
+  return data;
+};
+
+export const createRdFineWaiveRequest = async (
+  societyId: string,
+  rdId: string,
+  payload: {
+    scopeType: "all" | "selected";
+    months?: number[];
+    ttlDays?: number;
+    expiresAt?: string;
+    reduceFromMaturity?: boolean;
+    reason?: string;
+    autoApprove?: boolean;
+  },
+) => {
+  const { data } = await apiClient.post<RdFineWaiveRequest>(
+    `/recurring-deposits/${rdId}/fine-waive-requests`,
+    payload,
+    societyHeader(societyId),
+  );
+  return data;
+};
+
+export const listRdFineWaiveRequests = async (societyId: string, rdId: string) => {
+  const { data } = await apiClient.get<{ requests: RdFineWaiveRequest[] }>(
+    `/recurring-deposits/${rdId}/fine-waive-requests`,
+    societyHeader(societyId),
+  );
+  return data.requests;
+};
+
+export const listPendingRdFineWaiveRequests = async (societyId: string) => {
+  const { data } = await apiClient.get<{ requests: Array<RdFineWaiveRequest & { recurringDeposit: { id: string; customer: { fullName: string; phone: string } } }> }>(
+    "/recurring-deposits/fine-waive-requests/pending",
+    societyHeader(societyId),
+  );
+  return data.requests;
+};
+
+export const approveRdFineWaiveRequest = async (
+  societyId: string,
+  requestId: string,
+) => {
+  const { data } = await apiClient.post<RdFineWaiveRequest>(
+    `/recurring-deposits/fine-waive-requests/${requestId}/approve`,
+    {},
+    societyHeader(societyId),
+  );
+  return data;
+};
+
+export const rejectRdFineWaiveRequest = async (
+  societyId: string,
+  requestId: string,
+  payload?: { rejectionReason?: string },
+) => {
+  const { data } = await apiClient.post<RdFineWaiveRequest>(
+    `/recurring-deposits/fine-waive-requests/${requestId}/reject`,
     payload ?? {},
     societyHeader(societyId),
   );

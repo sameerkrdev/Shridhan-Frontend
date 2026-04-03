@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   IconChartBar,
+  IconBell,
   IconCoins,
   IconCreditCard,
   IconDashboard,
@@ -85,8 +86,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ) {
       items.push({ title: "Activities", url: "/activities", icon: IconChartBar });
     }
-
-    items.push({ title: "Analytics", url: "#", icon: IconChartBar });
+    if (hasPermission(permissions, "recurring_deposit.approve_fine_waive")) {
+      items.push({ title: "Notifications", url: "/notifications", icon: IconBell });
+    }
 
     if (hasPermission(permissions, "role.read")) {
       items.push({ title: "Role Settings", url: "/role-settings", icon: IconShield });

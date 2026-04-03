@@ -10,6 +10,7 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
+import { NotificationsPopover } from "@/components/notifications-popover";
 
 export function SiteHeader({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
@@ -59,7 +60,10 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {children && <div className="ml-auto flex items-center gap-2">{children}</div>}
+        <div className="ml-auto flex items-center gap-2">
+          <NotificationsPopover />
+          {children}
+        </div>
       </div>
     </header>
   );

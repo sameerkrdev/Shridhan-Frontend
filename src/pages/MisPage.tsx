@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -284,6 +285,7 @@ const MisPage = () => {
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
   const [isRecordTransactionOpen, setIsRecordTransactionOpen] = useState(false);
   const [selectedMisId, setSelectedMisId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const [transactionTarget, setTransactionTarget] = useState<MisAccount | null>(null);
   const [transactionDialog, setTransactionDialog] = useState<"deposit" | "interest" | "principal" | null>(null);
   const [misToDelete, setMisToDelete] = useState<{ id: string; label: string } | null>(null);
@@ -354,6 +356,12 @@ const MisPage = () => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(MIS_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(visibleColumns));
   }, [visibleColumns]);
+
+  useEffect(() => {
+    const accountId = searchParams.get("accountId");
+    if (!accountId) return;
+    setSelectedMisId(accountId);
+  }, [searchParams]);
 
   const handleSortClick = (field: SortField) => {
     if (sortBy === field) {

@@ -88,7 +88,10 @@ const AuthorizedLayout = () => {
   const isSessionRestorePending = hadSession && !hasRestoredSession;
 
   if (!isHydrated || isSessionRestorePending) return <FullPageLoader />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    const redirectTarget = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirectTarget)}`} replace />;
+  }
   if (!selectedMembership) return <Navigate to="/society-selector" replace />;
 
   return (
