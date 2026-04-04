@@ -31,7 +31,6 @@ const OnboardingForm = () => {
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
       societyName: "",
-      subdomain: "",
       zipcode: "",
       logo: undefined,
       country: "",
@@ -46,7 +45,6 @@ const OnboardingForm = () => {
     try {
       const payload = await createSocietyMutation.mutateAsync({
         name: data.societyName,
-        subDomainName: data.subdomain,
         country: data.country,
         state: data.state,
         city: data.city,
@@ -62,7 +60,6 @@ const OnboardingForm = () => {
         permissions: payload.membership.role.permissions,
         status: payload.membership.status,
         societyName: payload.society.name,
-        subDomainName: payload.society.subDomainName,
         societyStatus: payload.society.status,
       });
 
@@ -71,7 +68,6 @@ const OnboardingForm = () => {
       const backendFieldErrors = getApiValidationErrors(error);
       const fieldMap: Partial<Record<string, keyof OnboardingSchemaType>> = {
         name: "societyName",
-        subDomainName: "subdomain",
         country: "country",
         state: "state",
         city: "city",
@@ -111,18 +107,6 @@ const OnboardingForm = () => {
             {errors.societyName && (
               <p className="text-red-500 text-sm">{errors.societyName.message}</p>
             )}
-          </Field>
-
-          {/* SUBDOMAIN */}
-          <Field>
-            <FieldLabel>
-              Subdomain <span className="text-red-500">*</span>
-            </FieldLabel>
-            <div className="flex items-center gap-2">
-              <Input {...register("subdomain")} placeholder="my-society" />
-              <span className="text-muted-foreground">.shridhan.app</span>
-            </div>
-            {errors.subdomain && <p className="text-red-500 text-sm">{errors.subdomain.message}</p>}
           </Field>
 
           {/* LOCATION SELECT */}

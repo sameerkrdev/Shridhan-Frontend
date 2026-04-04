@@ -101,7 +101,7 @@ export function NavUser({
                 <IconCreditCard />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/notifications")}>
                 <IconNotification />
                 Notifications
               </DropdownMenuItem>

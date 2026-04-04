@@ -1,15 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createRdAccount,
+  createRdFineWaiveRequest,
   createRdProjectType,
   deleteRdAccount,
   deleteRdProjectType,
   getRdDetail,
+  listRdFineWaiveRequests,
+  listPendingRdFineWaiveRequests,
   listRdAccounts,
   listRdReferrerMembers,
   listRdProjectTypes,
   payRd,
   previewRdPayment,
+  approveRdFineWaiveRequest,
+  rejectRdFineWaiveRequest,
   updateRdAccount,
   withdrawRd,
   type RdFineCalculationMethod,
@@ -125,6 +130,7 @@ export const usePreviewRdPaymentMutation = (societyId: string, rdId: string) => 
       months?: number[];
       skipFinePolicy?: "none" | "all" | "selected";
       skipFineMonths?: number[];
+      waiveRequestId?: string;
     }) => previewRdPayment(societyId, rdId, payload),
   });
 };
@@ -137,6 +143,7 @@ export const usePayRdMutation = (societyId: string, rdId: string) => {
       months?: number[];
       skipFinePolicy?: "none" | "all" | "selected";
       skipFineMonths?: number[];
+      waiveRequestId?: string;
       paymentMethod?: "UPI" | "CASH" | "CHEQUE";
       transactionId?: string;
       upiId?: string;
@@ -159,6 +166,7 @@ export const usePayRdForAnyMutation = (societyId: string) => {
       months?: number[];
       skipFinePolicy?: "none" | "all" | "selected";
       skipFineMonths?: number[];
+      waiveRequestId?: string;
       paymentMethod?: "UPI" | "CASH" | "CHEQUE";
       transactionId?: string;
       upiId?: string;
@@ -180,6 +188,7 @@ export const useWithdrawRdMutation = (societyId: string, rdId: string) => {
   return useMutation({
     mutationFn: (payload?: {
       deductDeferredFinesFromMaturity?: boolean;
+      fineDeductionMode?: "all" | "marked_only";
       paymentMethod?: "UPI" | "CASH" | "CHEQUE";
       transactionId?: string;
       upiId?: string;
@@ -189,6 +198,72 @@ export const useWithdrawRdMutation = (societyId: string, rdId: string) => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["rd-detail", societyId, rdId] });
       void queryClient.invalidateQueries({ queryKey: ["rd-accounts", societyId] });
+    },
+  });
+};
+
+export const useRdFineWaiveRequestsQuery = (
+  societyId: string | null,
+  rdId: string | null,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: ["rd-fine-waive-requests", societyId, rdId],
+    queryFn: () => listRdFineWaiveRequests(societyId!, rdId!),
+    enabled: Boolean(societyId && rdId && enabled),
+  });
+};
+
+export const usePendingRdFineWaiveRequestsQuery = (societyId: string | null, enabled = true) => {
+  return useQuery({
+    queryKey: ["rd-fine-waive-requests-pending", societyId],
+    queryFn: () => listPendingRdFineWaiveRequests(societyId!),
+    enabled: Boolean(societyId && enabled),
+  });
+};
+
+export const useCreateRdFineWaiveRequestMutation = (societyId: string, rdId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      scopeType: "all" | "selected";
+      months?: number[];
+      ttlDays?: number;
+      expiresAt?: string;
+      reduceFromMaturity?: boolean;
+      reason?: string;
+      autoApprove?: boolean;
+    }) => createRdFineWaiveRequest(societyId, rdId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["rd-fine-waive-requests", societyId, rdId] });
+      void queryClient.invalidateQueries({ queryKey: ["rd-detail", societyId, rdId] });
+    },
+  });
+};
+
+export const useApproveRdFineWaiveRequestMutation = (societyId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (requestId: string) => approveRdFineWaiveRequest(societyId, requestId),
+    onSuccess: (request) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["rd-fine-waive-requests", societyId, request.recurringDepositId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["rd-detail", societyId, request.recurringDepositId] });
+    },
+  });
+};
+
+export const useRejectRdFineWaiveRequestMutation = (societyId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { requestId: string; rejectionReason?: string }) =>
+      rejectRdFineWaiveRequest(societyId, payload.requestId, { rejectionReason: payload.rejectionReason }),
+    onSuccess: (request) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["rd-fine-waive-requests", societyId, request.recurringDepositId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["rd-detail", societyId, request.recurringDepositId] });
     },
   });
 };

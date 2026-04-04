@@ -14,6 +14,7 @@ import { useAuthSessionStore } from "@/store/authSessionStore";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDate } from "@/lib/dateFormat";
 import FullPageLoader from "@/components/ui/full-page-loader";
+import { consumePendingPostLoginRedirect } from "@/lib/postLoginRedirect";
 
 const toReadableLabel = (value: string) =>
   value
@@ -99,7 +100,8 @@ const SocietySelectorPage = () => {
     try {
       const response = await resolveSocietyMutation.mutateAsync(societyId);
       setResolvedSociety(response);
-      navigate(response.nextRoute);
+      const pendingRedirect = consumePendingPostLoginRedirect();
+      navigate(pendingRedirect ?? response.nextRoute);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Unable to resolve selected society"));
     }
@@ -153,9 +155,6 @@ const SocietySelectorPage = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <CardTitle className="line-clamp-1">{m.societyName}</CardTitle>
-                    <CardDescription className="line-clamp-1 text-xs">
-                      {m.subDomainName}.shridhan.app
-                    </CardDescription>
                   </div>
                   <Building2 className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                 </div>

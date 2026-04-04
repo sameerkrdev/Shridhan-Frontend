@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   IconBuildingCommunity,
   IconCalendar,
@@ -71,7 +71,6 @@ const UserProfilePage = () => {
       membershipId: membership.membershipId,
       societyId: membership.societyId,
       societyName: membership.societyName,
-      subDomainName: membership.subDomainName,
       roleId: membership.roleId,
       role: membership.role,
       status: membership.status,
@@ -242,9 +241,6 @@ const UserProfilePage = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <CardTitle className="line-clamp-1 text-base">{membership.societyName}</CardTitle>
-                      <CardDescription className="line-clamp-1 text-xs">
-                        @{membership.subDomainName}
-                      </CardDescription>
                     </div>
                     <IconBuildingCommunity className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   </div>

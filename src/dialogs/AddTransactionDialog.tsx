@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -98,10 +98,10 @@ export const AddTransactionDialog = ({
 }: AddTransactionDialogProps) => {
   const mutation = useAddTransactionForAnyFdMutation(societyId);
   const {
+    control,
     register,
     handleSubmit,
     setValue,
-    watch,
     reset,
     setError,
     clearErrors,
@@ -120,10 +120,11 @@ export const AddTransactionDialog = ({
     },
   });
 
-  const selectedFdId = watch("fixedDepositId") || fixedDepositId || "";
-  const paymentMethod = watch("paymentMethod");
-  const type = watch("type");
-  const amount = watch("amount");
+  const [watchedFdId, paymentMethod, type, amount] = useWatch({
+    control,
+    name: ["fixedDepositId", "paymentMethod", "type", "amount"],
+  });
+  const selectedFdId = watchedFdId || fixedDepositId || "";
 
   const { data: fixedDepositDetail, isLoading: isFdDetailLoading } = useFdDetailQuery(
     societyId,

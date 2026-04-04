@@ -18,6 +18,7 @@ import FixedDepositsPage from "@/pages/FixedDepositsPage";
 import MisPage from "@/pages/MisPage";
 import RecurringDepositsPage from "@/pages/RecurringDepositsPage";
 import ActivitiesPage from "@/pages/ActivitiesPage";
+import NotificationsPage from "@/pages/NotificationsPage";
 
 const router = createBrowserRouter([
   {
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
           { path: "mis", element: <MisPage /> },
           { path: "recurring-deposits", element: <RecurringDepositsPage /> },
           { path: "activities", element: <ActivitiesPage /> },
+          { path: "notifications", element: <NotificationsPage /> },
         ],
       },
       {

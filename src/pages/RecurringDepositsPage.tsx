@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,6 @@ const RecurringDepositsPage = () => {
   const permissions = selectedMembership?.permissions ?? [];
   const societyId = selectedMembership?.societyId ?? null;
 
-  const canRead = hasPermission(permissions, "recurring_deposit.read");
   const canRemoveRd = hasPermission(permissions, "recurring_deposit.remove");
   const canRemoveProjectType = hasPermission(permissions, "recurring_deposit.remove_project_type");
   const canPayRd = hasPermission(permissions, "recurring_deposit.pay");
@@ -52,6 +52,7 @@ const RecurringDepositsPage = () => {
   const [isCreateProjectTypeOpen, setIsCreateProjectTypeOpen] = useState(false);
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
   const [selectedRdId, setSelectedRdId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const [isAddRdTransactionOpen, setIsAddRdTransactionOpen] = useState(false);
   const [rdToDelete, setRdToDelete] = useState<{ id: string; label: string } | null>(null);
   const [projectTypeToDelete, setProjectTypeToDelete] = useState<{ id: string; label: string } | null>(null);
@@ -91,6 +92,12 @@ const RecurringDepositsPage = () => {
       })),
     [accountRows],
   );
+
+  useEffect(() => {
+    const accountId = searchParams.get("accountId");
+    if (!accountId) return;
+    setSelectedRdId(accountId);
+  }, [searchParams]);
 
   const handleSortClick = (field: SortField) => {
     if (sortBy === field) {
@@ -271,6 +278,12 @@ const RecurringDepositsPage = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead>
+                  <button type="button" className="group inline-flex items-center" onClick={() => handleSortClick("id")}>
+                    RD ID
+                    {renderSortIcon("id")}
+                  </button>
+                </TableHead>
                 <TableHead className="group cursor-pointer" onClick={() => handleSortClick("customer_name")}>
                   Customer {renderSortIcon("customer_name")}
                 </TableHead>
@@ -292,19 +305,28 @@ const RecurringDepositsPage = () => {
             <TableBody>
               {isAccountsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Loading accounts...
                   </TableCell>
                 </TableRow>
               ) : accountRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     No RD accounts found.
                   </TableCell>
                 </TableRow>
               ) : (
                 accountRows.map((account: RdAccount) => (
                   <TableRow key={account.id}>
+                    <TableCell>
+                      <button
+                        type="button"
+                        className="text-primary underline-offset-4 hover:underline font-medium"
+                        onClick={() => setSelectedRdId(account.id)}
+                      >
+                        {account.id.slice(0, 8)}
+                      </button>
+                    </TableCell>
                     <TableCell className="font-medium">{account.customer.fullName}</TableCell>
                     <TableCell>{account.customer.phone}</TableCell>
                     <TableCell>{formatCurrency(account.monthlyAmount)}</TableCell>
@@ -313,11 +335,6 @@ const RecurringDepositsPage = () => {
                       <Badge variant={account.status === "ACTIVE" ? "default" : "secondary"}>{account.status}</Badge>
                     </TableCell>
                     <TableCell className="space-x-2">
-                      {canRead ? (
-                        <Button type="button" size="sm" variant="outline" onClick={() => setSelectedRdId(account.id)}>
-                          View
-                        </Button>
-                      ) : null}
                       {canRemoveRd && !account.isDeleted ? (
                         <Button
                           type="button"

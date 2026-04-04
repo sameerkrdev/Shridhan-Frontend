@@ -21,10 +21,16 @@ import {
 } from "@/components/ui/select";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { SearchableSingleSelectAsync } from "@/components/ui/searchable-single-select";
-import { usePayRdForAnyMutation, useRdDetailQuery } from "@/hooks/useRdApi";
+import {
+  useCreateRdFineWaiveRequestMutation,
+  usePayRdForAnyMutation,
+  useRdDetailQuery,
+} from "@/hooks/useRdApi";
 import { previewRdPayment, type PaymentMethod } from "@/lib/rdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { hasPermission } from "@/components/Can";
+import { useAuthSessionStore } from "@/store/authSessionStore";
 
 const schema = z
   .object({
@@ -97,6 +103,9 @@ export const AddRdTransactionDialog = ({
   recurringDepositOptions = [],
 }: AddRdTransactionDialogProps) => {
   const mutation = usePayRdForAnyMutation(societyId);
+  const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions ?? []);
+  const canRequestWaive = hasPermission(permissions, "recurring_deposit.request_fine_waive");
+  const canApproveWaive = hasPermission(permissions, "recurring_deposit.approve_fine_waive");
   const {
     register,
     handleSubmit,
@@ -142,12 +151,29 @@ export const AddRdTransactionDialog = ({
 
   const [previewMaxDue, setPreviewMaxDue] = useState<string | null>(null);
   const [previewPending, setPreviewPending] = useState(false);
+  const [monthMode, setMonthMode] = useState<"single" | "multiple">("single");
+  const [singleMonth, setSingleMonth] = useState<number | null>(null);
+  const [multiMonths, setMultiMonths] = useState<number[]>([]);
+  const [waiveScope, setWaiveScope] = useState<"none" | "all" | "selected">("none");
+  const [waiveMonthsInput, setWaiveMonthsInput] = useState("");
+  const [waiveReason, setWaiveReason] = useState("");
+  const [waiveTtlDays, setWaiveTtlDays] = useState("7");
+  const [reduceFromMaturity, setReduceFromMaturity] = useState(false);
+  const createWaiveMutation = useCreateRdFineWaiveRequestMutation(societyId, selectedRdId);
 
   useEffect(() => {
     if (!open) {
       reset();
       clearErrors();
       setPreviewMaxDue(null);
+      setMonthMode("single");
+      setSingleMonth(null);
+      setMultiMonths([]);
+      setWaiveScope("none");
+      setWaiveMonthsInput("");
+      setWaiveReason("");
+      setWaiveTtlDays("7");
+      setReduceFromMaturity(false);
       return;
     }
     if (recurringDepositId) {
@@ -169,7 +195,14 @@ export const AddRdTransactionDialog = ({
       void previewRdPayment(societyId, selectedRdId, {
         amount: num,
         months: monthsParsed?.length ? monthsParsed : undefined,
-        skipFinePolicy: "none",
+        skipFinePolicy: waiveScope === "none" ? "none" : waiveScope,
+        skipFineMonths:
+          waiveScope === "selected"
+            ? waiveMonthsInput
+                .split(",")
+                .map((s) => Number(s.trim()))
+                .filter((n) => !Number.isNaN(n) && n > 0)
+            : undefined,
       })
         .then((res) => {
           setPreviewMaxDue(res.maxDue);
@@ -182,10 +215,25 @@ export const AddRdTransactionDialog = ({
         });
     }, 400);
     return () => window.clearTimeout(t);
-  }, [amount, monthsParsed, open, selectedRdId, societyId]);
+  }, [amount, monthsParsed, open, selectedRdId, societyId, waiveScope, waiveMonthsInput]);
 
   const maxDueNum = previewMaxDue !== null ? Number(previewMaxDue) : NaN;
   const outstanding = rdDetail ? Number(rdDetail.summary.totalOutstanding) : null;
+  const monthOptions = useMemo(() => {
+    if (!rdDetail?.installments?.length) return [] as number[];
+    return Array.from(new Set(rdDetail.installments.map((row) => row.monthIndex))).sort((a, b) => a - b);
+  }, [rdDetail?.installments]);
+  const pendingMonthOptions = useMemo(() => {
+    if (!rdDetail?.installments?.length) return [] as number[];
+    return rdDetail.installments
+      .filter((row) => Number(row.remainingPrincipal) > 0)
+      .map((row) => row.monthIndex);
+  }, [rdDetail?.installments]);
+
+  const syncMonthsScope = (months: number[]) => {
+    const normalized = [...new Set(months)].sort((a, b) => a - b);
+    setValue("monthsScope", normalized.join(","), { shouldValidate: true });
+  };
 
   const onSubmit = async (values: FormData) => {
     try {
@@ -203,11 +251,37 @@ export const AddRdTransactionDialog = ({
         return;
       }
 
+      let waiveRequestId: string | undefined;
+      if (canRequestWaive && waiveScope !== "none") {
+        const selectedMonths =
+          waiveScope === "selected"
+            ? waiveMonthsInput
+                .split(",")
+                .map((s) => Number(s.trim()))
+                .filter((n) => !Number.isNaN(n) && n > 0)
+            : undefined;
+        const request = await createWaiveMutation.mutateAsync({
+          scopeType: waiveScope,
+          months: selectedMonths?.length ? selectedMonths : undefined,
+          ttlDays: Number(waiveTtlDays) || 7,
+          reduceFromMaturity,
+          reason: waiveReason.trim() || undefined,
+          autoApprove: canApproveWaive,
+        });
+        if (request.status !== "APPROVED") {
+          toast.success("Fine waive request submitted for approval");
+          onOpenChange(false);
+          return;
+        }
+        waiveRequestId = request.id;
+      }
+
       await mutation.mutateAsync({
         rdId: targetRdId,
         amount: values.amount,
         months: monthsParsed?.length ? monthsParsed : undefined,
         skipFinePolicy: "none",
+        waiveRequestId,
         paymentMethod: values.paymentMethod,
         transactionId: values.transactionId || undefined,
         upiId: values.upiId || undefined,
@@ -253,9 +327,89 @@ export const AddRdTransactionDialog = ({
           ) : null}
 
           <div className="space-y-2">
-            <Label>Months scope (optional, comma-separated indexes)</Label>
-            <Input placeholder="e.g. 1,2,3" {...register("monthsScope")} />
+            <RequiredLabel>Month selection mode</RequiredLabel>
+            <Select
+              value={monthMode}
+              onValueChange={(value) => {
+                const nextMode = value as "single" | "multiple";
+                setMonthMode(nextMode);
+                if (nextMode === "single") {
+                  setMultiMonths([]);
+                  syncMonthsScope(singleMonth ? [singleMonth] : []);
+                } else {
+                  setSingleMonth(null);
+                  syncMonthsScope(multiMonths);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single Month</SelectItem>
+                <SelectItem value="multiple">Multiple Months</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {monthMode === "single" ? (
+            <div className="space-y-2">
+              <RequiredLabel>Month</RequiredLabel>
+              <Select
+                value={singleMonth ? String(singleMonth) : ""}
+                onValueChange={(value) => {
+                  const month = Number(value);
+                  setSingleMonth(month);
+                  syncMonthsScope([month]);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((month) => {
+                    const enabled = pendingMonthOptions.includes(month);
+                    return (
+                      <SelectItem key={month} value={String(month)} disabled={!enabled}>
+                        Month {month} {enabled ? "" : "(Paid)"}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <RequiredLabel>Months</RequiredLabel>
+              <div className="grid grid-cols-2 gap-2 rounded-md border p-3 max-h-44 overflow-auto">
+                {monthOptions.map((month) => {
+                  const enabled = pendingMonthOptions.includes(month);
+                  const checked = multiMonths.includes(month);
+                  return (
+                    <label
+                      key={month}
+                      className={`flex items-center gap-2 text-sm ${enabled ? "" : "text-muted-foreground"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!enabled}
+                        checked={checked}
+                        onChange={(event) => {
+                          const next = new Set(multiMonths);
+                          if (event.target.checked) next.add(month);
+                          else next.delete(month);
+                          const nextList = Array.from(next).sort((a, b) => a - b);
+                          setMultiMonths(nextList);
+                          syncMonthsScope(nextList);
+                        }}
+                      />
+                      <span>Month {month}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -311,6 +465,54 @@ export const AddRdTransactionDialog = ({
             </div>
           ) : null}
 
+          {canRequestWaive ? (
+            <div className="space-y-2 rounded-md border p-3">
+              <Label>Fine waive-off request</Label>
+              <Select value={waiveScope} onValueChange={(value) => setWaiveScope(value as typeof waiveScope)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No waive request</SelectItem>
+                  <SelectItem value="all">Request waive for all due fine months</SelectItem>
+                  <SelectItem value="selected">Request waive for selected fine months</SelectItem>
+                </SelectContent>
+              </Select>
+              {waiveScope === "selected" ? (
+                <Input
+                  placeholder="Waive month indexes (e.g. 1,2,3)"
+                  value={waiveMonthsInput}
+                  onChange={(e) => setWaiveMonthsInput(e.target.value)}
+                />
+              ) : null}
+              {waiveScope !== "none" ? (
+                <>
+                  <Input
+                    placeholder="Reason (optional)"
+                    value={waiveReason}
+                    onChange={(e) => setWaiveReason(e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    max={30}
+                    placeholder="Expiry in days (default 7)"
+                    value={waiveTtlDays}
+                    onChange={(e) => setWaiveTtlDays(e.target.value)}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={reduceFromMaturity}
+                      onChange={(e) => setReduceFromMaturity(e.target.checked)}
+                    />
+                    Reduce waived fine from maturity amount
+                  </label>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
           {paymentMethod === "UPI" && (
             <div className="space-y-2">
               <Label>Transaction ID</Label>
@@ -354,7 +556,7 @@ export const AddRdTransactionDialog = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending || !selectedRdId}>
+            <Button type="submit" disabled={mutation.isPending || createWaiveMutation.isPending || !selectedRdId}>
               Add Transaction
             </Button>
           </div>

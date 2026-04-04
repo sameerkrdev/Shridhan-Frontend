@@ -21,7 +21,6 @@ export interface MembershipSummary {
   permissions: string[];
   status: MembershipStatus;
   societyName: string;
-  subDomainName: string;
   societyStatus: SocietyStatus;
 }
 
@@ -39,7 +38,6 @@ export interface ResolveSocietyResponse {
   membershipId: string;
   societyId: string;
   societyName: string;
-  subDomainName: string;
   societyStatus: SocietyStatus;
   role: MembershipRole;
   roleId: string;

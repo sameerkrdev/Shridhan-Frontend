@@ -24,7 +24,9 @@ interface RdWithdrawDialogProps {
   summary?: {
     grossMaturityPayout?: string;
     totalDeferredFines?: string;
+    totalMarkedWaiveFromMaturity?: string;
     netMaturityPayoutAfterDeferredFines?: string;
+    netMaturityPayoutAfterMarkedWaives?: string;
   };
 }
 
@@ -35,7 +37,12 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId, summary 
   const [bankName, setBankName] = useState("");
   const [chequeNumber, setChequeNumber] = useState("");
   const totalDeferred = Number(summary?.totalDeferredFines ?? "0");
+  const totalMarked = Number(summary?.totalMarkedWaiveFromMaturity ?? "0");
   const hasDeferredFines = totalDeferred > 0;
+  const hasMarkedWaive = totalMarked > 0;
+  const [fineDeductionMode, setFineDeductionMode] = useState<"all" | "marked_only">(
+    hasDeferredFines ? "all" : "marked_only",
+  );
   const [deductDeferredFinesFromMaturity, setDeductDeferredFinesFromMaturity] = useState(hasDeferredFines);
   const mutation = useWithdrawRdMutation(societyId, rdId);
 
@@ -47,6 +54,7 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId, summary 
       setBankName("");
       setChequeNumber("");
       setDeductDeferredFinesFromMaturity(hasDeferredFines);
+      setFineDeductionMode(hasDeferredFines ? "all" : "marked_only");
     }
     onOpenChange(nextOpen);
   };
@@ -61,6 +69,7 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId, summary 
     try {
       await mutation.mutateAsync({
         deductDeferredFinesFromMaturity,
+        fineDeductionMode,
         paymentMethod,
         transactionId: transactionId.trim() || undefined,
         upiId: upiId.trim() || undefined,
@@ -107,6 +116,23 @@ export const RdWithdrawDialog = ({ open, onOpenChange, societyId, rdId, summary 
               />
               <span className="text-sm">Deduct deferred penalties from maturity payout</span>
             </label>
+          ) : null}
+          {(hasDeferredFines || hasMarkedWaive) ? (
+            <div className="space-y-2">
+              <Label>Fine deduction mode</Label>
+              <Select value={fineDeductionMode} onValueChange={(v) => setFineDeductionMode(v as typeof fineDeductionMode)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Deduct all deferred fine from maturity</SelectItem>
+                  <SelectItem value="marked_only">Deduct only marked waive fine from maturity</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Preview: all deduction Rs. {Number(summary?.totalDeferredFines ?? "0").toFixed(2)} | marked-only deduction Rs. {Number(summary?.totalMarkedWaiveFromMaturity ?? "0").toFixed(2)}
+              </p>
+            </div>
           ) : null}
           <div className="space-y-2">
             <Label>Payout method</Label>

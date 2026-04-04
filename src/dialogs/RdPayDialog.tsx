@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePreviewRdPaymentMutation, usePayRdMutation } from "@/hooks/useRdApi";
+import {
+  useCreateRdFineWaiveRequestMutation,
+  usePreviewRdPaymentMutation,
+  usePayRdMutation,
+} from "@/hooks/useRdApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { hasPermission } from "@/components/Can";
@@ -30,8 +34,16 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
 
   const previewMutation = usePreviewRdPaymentMutation(societyId, rdId);
   const payMutation = usePayRdMutation(societyId, rdId);
+  const createWaiveRequestMutation = useCreateRdFineWaiveRequestMutation(societyId, rdId);
   const permissions = useAuthSessionStore((s) => s.selectedMembership?.permissions ?? []);
   const canSkipFine = hasPermission(permissions, "recurring_deposit.pay_skip_fine");
+  const canRequestWaive = hasPermission(permissions, "recurring_deposit.request_fine_waive");
+  const canApproveWaive = hasPermission(permissions, "recurring_deposit.approve_fine_waive");
+  const [waiveScope, setWaiveScope] = useState<"none" | "all" | "selected">("none");
+  const [waiveMonthsInput, setWaiveMonthsInput] = useState("");
+  const [waiveReason, setWaiveReason] = useState("");
+  const [waiveTtlDays, setWaiveTtlDays] = useState("7");
+  const [reduceFromMaturity, setReduceFromMaturity] = useState(false);
 
   const preview = previewMutation.data;
 
@@ -64,6 +76,11 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
       setUpiId("");
       setBankName("");
       setChequeNumber("");
+      setWaiveScope("none");
+      setWaiveMonthsInput("");
+      setWaiveReason("");
+      setWaiveTtlDays("7");
+      setReduceFromMaturity(false);
       previewMutation.reset();
       return;
     }
@@ -73,16 +90,36 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
       void previewMutation.mutate({
         amount: amount.trim() === "" || Number.isNaN(num) ? undefined : num,
         months: monthsParsed?.length ? monthsParsed : undefined,
-        skipFinePolicy: canSkipFine ? skipFinePolicy : "none",
+        skipFinePolicy:
+          waiveScope === "none"
+            ? canSkipFine
+              ? skipFinePolicy
+              : "none"
+            : waiveScope,
         skipFineMonths:
-          canSkipFine && skipFinePolicy === "selected" && skipFineMonthsParsed?.length
-            ? skipFineMonthsParsed
-            : undefined,
+          waiveScope === "selected"
+            ? (waiveMonthsInput.trim()
+                ? waiveMonthsInput.split(",").map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n) && n > 0)
+                : undefined)
+            : canSkipFine && skipFinePolicy === "selected" && skipFineMonthsParsed?.length
+              ? skipFineMonthsParsed
+              : undefined,
       });
     }, 400);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce preview
-  }, [open, amount, monthsInput, skipFinePolicy, skipFineMonthsInput, societyId, rdId, canSkipFine]);
+  }, [
+    open,
+    amount,
+    monthsInput,
+    skipFinePolicy,
+    skipFineMonthsInput,
+    societyId,
+    rdId,
+    canSkipFine,
+    waiveScope,
+    waiveMonthsInput,
+  ]);
 
   const maxDueNum = preview ? Number(preview.maxDue) : NaN;
   const amountNum = Number(amount);
@@ -96,6 +133,11 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
   const canSubmit =
     amountValid &&
     (skipFinePolicy !== "selected" || (skipFineMonthsParsed?.length ?? 0) > 0) &&
+    (waiveScope !== "selected" ||
+      waiveMonthsInput
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => !Number.isNaN(n) && n > 0).length > 0) &&
     (paymentMethod === "CASH" ||
       (paymentMethod === "UPI" && transactionId.trim() && upiId.trim()) ||
       (paymentMethod === "CHEQUE" && bankName.trim() && chequeNumber.trim()));
@@ -103,6 +145,31 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
   const handlePay = async () => {
     if (!canSubmit) return;
     try {
+      let waiveRequestId: string | undefined;
+      if (canRequestWaive && waiveScope !== "none") {
+        const selectedMonths =
+          waiveScope === "selected"
+            ? waiveMonthsInput
+                .split(",")
+                .map((s) => Number(s.trim()))
+                .filter((n) => !Number.isNaN(n) && n > 0)
+            : undefined;
+        const request = await createWaiveRequestMutation.mutateAsync({
+          scopeType: waiveScope,
+          months: selectedMonths?.length ? selectedMonths : undefined,
+          ttlDays: Number(waiveTtlDays) || 7,
+          reduceFromMaturity,
+          reason: waiveReason.trim() || undefined,
+          autoApprove: canApproveWaive,
+        });
+        if (request.status !== "APPROVED") {
+          toast.success("Fine waive request submitted for approval");
+          onOpenChange(false);
+          return;
+        }
+        waiveRequestId = request.id;
+      }
+
       await payMutation.mutateAsync({
         amount: amountNum,
         months: monthsParsed?.length ? monthsParsed : undefined,
@@ -111,6 +178,7 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
           canSkipFine && skipFinePolicy === "selected" && skipFineMonthsParsed?.length
             ? skipFineMonthsParsed
             : undefined,
+        waiveRequestId,
         paymentMethod,
         transactionId: transactionId.trim() || undefined,
         upiId: upiId.trim() || undefined,
@@ -179,6 +247,54 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
             </div>
           ) : null}
 
+          {canRequestWaive ? (
+            <div className="space-y-2 rounded-md border p-3">
+              <Label>Fine waive-off request</Label>
+              <Select value={waiveScope} onValueChange={(v) => setWaiveScope(v as typeof waiveScope)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No waive request</SelectItem>
+                  <SelectItem value="all">Request waive for all due fine months</SelectItem>
+                  <SelectItem value="selected">Request waive for selected fine months</SelectItem>
+                </SelectContent>
+              </Select>
+              {waiveScope === "selected" ? (
+                <Input
+                  placeholder="Waive month indexes (e.g. 1,2,3)"
+                  value={waiveMonthsInput}
+                  onChange={(e) => setWaiveMonthsInput(e.target.value)}
+                />
+              ) : null}
+              {waiveScope !== "none" ? (
+                <>
+                  <Input
+                    placeholder="Reason (optional)"
+                    value={waiveReason}
+                    onChange={(e) => setWaiveReason(e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    max={30}
+                    placeholder="Expiry in days (default 7)"
+                    value={waiveTtlDays}
+                    onChange={(e) => setWaiveTtlDays(e.target.value)}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={reduceFromMaturity}
+                      onChange={(e) => setReduceFromMaturity(e.target.checked)}
+                    />
+                    Reduce waived fine from maturity amount
+                  </label>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
           {previewMutation.isPending ? (
             <p className="text-sm text-muted-foreground">Updating preview...</p>
           ) : preview ? (
@@ -238,7 +354,9 @@ export const RdPayDialog = ({ open, onOpenChange, societyId, rdId }: RdPayDialog
             Cancel
           </Button>
           <Button type="button" disabled={!canSubmit || payMutation.isPending} onClick={handlePay}>
-            {payMutation.isPending ? "Saving..." : "Submit payment"}
+            {payMutation.isPending || createWaiveRequestMutation.isPending
+              ? "Saving..."
+              : "Submit payment"}
           </Button>
         </DialogFooter>
       </DialogContent>
