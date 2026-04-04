@@ -81,7 +81,6 @@ export interface UserMembershipProfile {
   membershipId: string;
   societyId: string;
   societyName: string;
-  subDomainName: string;
   roleId: string;
   role: string;
   status: MembershipStatus;

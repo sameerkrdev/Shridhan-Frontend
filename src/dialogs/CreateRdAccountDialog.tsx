@@ -397,19 +397,19 @@ export const CreateRdAccountDialog = ({
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
           {mode === "create" ? (
             <div className="space-y-2">
-            <RequiredLabel>Referrer Member</RequiredLabel>
-            <SearchableSingleSelectAsync
-              value={referrerMembershipId || ""}
-              onChange={(value) =>
-                setValue("referrerMembershipId", value, { shouldValidate: true })
-              }
-              options={referrerOptions}
-              placeholder="Select referrer member"
-              className="w-full"
-            />
-            {errors.referrerMembershipId ? (
-              <p className="text-sm text-destructive">{errors.referrerMembershipId.message}</p>
-            ) : null}
+              <RequiredLabel>Referrer Member</RequiredLabel>
+              <SearchableSingleSelectAsync
+                value={referrerMembershipId || ""}
+                onChange={(value) =>
+                  setValue("referrerMembershipId", value, { shouldValidate: true })
+                }
+                options={referrerOptions}
+                placeholder="Select referrer member"
+                className="w-full"
+              />
+              {errors.referrerMembershipId ? (
+                <p className="text-sm text-destructive">{errors.referrerMembershipId.message}</p>
+              ) : null}
             </div>
           ) : null}
 
@@ -463,7 +463,7 @@ export const CreateRdAccountDialog = ({
                 ) : null}
               </div>
             </div>
-            </div>
+          </div>
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Nominee Info</h3>
@@ -576,66 +576,70 @@ export const CreateRdAccountDialog = ({
             >
               Add Nominee
             </Button>
-            </div>
+          </div>
 
           {mode === "create" ? (
             <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">RD Details</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-2">
-                <RequiredLabel>Project Type</RequiredLabel>
-                <Select
-                  value={selectedProjectTypeId}
-                  onValueChange={(value) =>
-                    setValue("rd.projectTypeId", value, { shouldValidate: true })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select project type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectTypes.map((projectType) => (
-                      <SelectItem key={projectType.id} value={projectType.id}>
-                        {projectType.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.rd?.projectTypeId ? (
-                  <p className="text-sm text-destructive">{errors.rd.projectTypeId.message}</p>
-                ) : null}
-              </div>
+              <h3 className="text-sm font-semibold text-muted-foreground">RD Details</h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <RequiredLabel>Project Type</RequiredLabel>
+                  <Select
+                    value={selectedProjectTypeId}
+                    onValueChange={(value) =>
+                      setValue("rd.projectTypeId", value, { shouldValidate: true })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select project type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projectTypes.map((projectType) => (
+                        <SelectItem key={projectType.id} value={projectType.id}>
+                          {projectType.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.rd?.projectTypeId ? (
+                    <p className="text-sm text-destructive">{errors.rd.projectTypeId.message}</p>
+                  ) : null}
+                </div>
 
-              <div className="space-y-2">
-                <RequiredLabel>Monthly Amount</RequiredLabel>
-                <Input
-                  type="number"
-                  placeholder="Enter monthly amount"
-                  {...register("rd.monthlyAmount", { valueAsNumber: true })}
-                />
-                {errors.rd?.monthlyAmount ? (
-                  <p className="text-sm text-destructive">{errors.rd.monthlyAmount.message}</p>
-                ) : null}
-              </div>
+                <div className="space-y-2">
+                  <RequiredLabel>Monthly Amount</RequiredLabel>
+                  <Input
+                    type="number"
+                    placeholder="Enter monthly amount"
+                    {...register("rd.monthlyAmount", { valueAsNumber: true })}
+                  />
+                  {errors.rd?.monthlyAmount ? (
+                    <p className="text-sm text-destructive">{errors.rd.monthlyAmount.message}</p>
+                  ) : null}
+                </div>
 
-              <div className="space-y-2">
-                <RequiredLabel>Start Date</RequiredLabel>
-                <Input type="date" placeholder="Select start date" {...register("rd.startDate")} />
-                {errors.rd?.startDate ? (
-                  <p className="text-sm text-destructive">{errors.rd.startDate.message}</p>
-                ) : null}
+                <div className="space-y-2">
+                  <RequiredLabel>Start Date</RequiredLabel>
+                  <Input
+                    type="date"
+                    placeholder="Select start date"
+                    {...register("rd.startDate")}
+                  />
+                  {errors.rd?.startDate ? (
+                    <p className="text-sm text-destructive">{errors.rd.startDate.message}</p>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            {selectedProjectType &&
-            typeof monthlyAmount === "number" &&
-            !Number.isNaN(monthlyAmount) &&
-            monthlyAmount > 0 &&
-            monthlyAmount < selectedProjectTypeMinimumMonthly ? (
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-                Monthly amount is below this plan&apos;s minimum of Rs.{" "}
-                {selectedProjectTypeMinimumMonthly.toFixed(2)}.
-              </div>
-            ) : null}
+              {selectedProjectType &&
+              typeof monthlyAmount === "number" &&
+              !Number.isNaN(monthlyAmount) &&
+              monthlyAmount > 0 &&
+              monthlyAmount < selectedProjectTypeMinimumMonthly ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                  Monthly amount is below this plan&apos;s minimum of Rs.{" "}
+                  {selectedProjectTypeMinimumMonthly.toFixed(2)}.
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -681,76 +685,78 @@ export const CreateRdAccountDialog = ({
 
           {mode === "create" ? (
             <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Selected Project Type
-              </p>
-              <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Name</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType?.name ?? "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Duration</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Minimum Amount</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType
-                      ? `Rs. ${selectedProjectTypeMinimumMonthly.toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Maturity basis</span>
-                  <span className="font-medium text-right">
-                    {selectedProjectType
-                      ? `${Number(selectedProjectType.maturityPerHundred ?? 0).toFixed(2)} per Rs.100`
-                      : "N/A"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Calculation Preview
-              </p>
-              <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Deposit Amount</span>
-                  <span className="font-medium text-right">
-                    {totalPrincipalPreview !== null
-                      ? `Rs. ${totalPrincipalPreview.toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Maturity Amount</span>
-                  <span className="font-semibold text-right">
-                    {maturityAmountPreview !== null
-                      ? `Rs. ${maturityAmountPreview.toFixed(2)}`
-                      : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Estimated Gain</span>
-                  <span className="font-semibold text-right text-emerald-700">
-                    {maturityGainPreview !== null ? `Rs. ${maturityGainPreview.toFixed(2)}` : "N/A"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
-                  <span className="text-muted-foreground">Maturity Date</span>
-                  <span className="font-medium text-right">
-                    {maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}
-                  </span>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Selected Project Type
+                </p>
+                <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-medium text-right">
+                      {selectedProjectType?.name ?? "N/A"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span className="font-medium text-right">
+                      {selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Minimum Amount</span>
+                    <span className="font-medium text-right">
+                      {selectedProjectType
+                        ? `Rs. ${selectedProjectTypeMinimumMonthly.toFixed(2)}`
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Maturity basis</span>
+                    <span className="font-medium text-right">
+                      {selectedProjectType
+                        ? `${Number(selectedProjectType.maturityPerHundred ?? 0).toFixed(2)} per Rs.100`
+                        : "N/A"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Calculation Preview
+                </p>
+                <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Deposit Amount</span>
+                    <span className="font-medium text-right">
+                      {totalPrincipalPreview !== null
+                        ? `Rs. ${totalPrincipalPreview.toFixed(2)}`
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Maturity Amount</span>
+                    <span className="font-semibold text-right">
+                      {maturityAmountPreview !== null
+                        ? `Rs. ${maturityAmountPreview.toFixed(2)}`
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Estimated Gain</span>
+                    <span className="font-semibold text-right text-emerald-700">
+                      {maturityGainPreview !== null
+                        ? `Rs. ${maturityGainPreview.toFixed(2)}`
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                    <span className="text-muted-foreground">Maturity Date</span>
+                    <span className="font-medium text-right">
+                      {maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null}
 

@@ -22,7 +22,6 @@ interface UserExistsPayload {
 
 interface CreateSocietyPayload {
   name: string;
-  subDomainName: string;
   country: string;
   state: string;
   city: string;
@@ -88,7 +87,6 @@ export const createSociety = async (payload: CreateSocietyPayload) => {
     society: {
       id: string;
       name: string;
-      subDomainName: string;
       status: "CREATED" | "RAZORPAY_PENDING" | "ACTIVE";
     };
     membership: {

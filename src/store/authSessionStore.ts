@@ -88,7 +88,6 @@ export const useAuthSessionStore = create<AuthSessionState>()(
           permissions: resolved.permissions,
           status: resolved.status,
           societyName: resolved.societyName,
-          subDomainName: resolved.subDomainName,
           societyStatus: resolved.societyStatus,
         };
 

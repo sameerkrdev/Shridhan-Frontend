@@ -155,9 +155,6 @@ const SocietySelectorPage = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <CardTitle className="line-clamp-1">{m.societyName}</CardTitle>
-                    <CardDescription className="line-clamp-1 text-xs">
-                      {m.subDomainName}.shridhan.app
-                    </CardDescription>
                   </div>
                   <Building2 className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                 </div>
