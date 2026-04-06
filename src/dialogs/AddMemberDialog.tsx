@@ -23,6 +23,7 @@ import {
   useAssignableRoleOptionsQuery,
 } from "@/hooks/useMembershipApi";
 import { toast } from "sonner";
+import { z } from "zod";
 import { getApiErrorMessage } from "@/lib/apiError";
 import type { User } from "@/types/auth";
 
@@ -80,9 +81,17 @@ export const AddMemberDialog = ({
   };
 
   const handleSearch = async () => {
-    if (!searchInput.trim()) return;
+    const trimmed = searchInput.trim();
+    if (!trimmed) return;
+    if (trimmed.includes("@")) {
+      const parsed = z.email("Enter a valid email address").safeParse(trimmed);
+      if (!parsed.success) {
+        toast.error(parsed.error.issues[0]?.message ?? "Invalid email");
+        return;
+      }
+    }
     try {
-      const result = await searchMutation.mutateAsync(searchInput.trim());
+      const result = await searchMutation.mutateAsync(trimmed);
       if (result.found && result.user) {
         setFoundUser(result.user);
         setStep("found");

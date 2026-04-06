@@ -27,7 +27,14 @@ const AuthSessionBootstrap = () => {
       .finally(() => {
         setHasRestoredSession(true);
       });
-  }, [clearSession, hadSession, hasRestoredSession, isHydrated, setAuthPayload, setHasRestoredSession]);
+  }, [
+    clearSession,
+    hadSession,
+    hasRestoredSession,
+    isHydrated,
+    setAuthPayload,
+    setHasRestoredSession,
+  ]);
 
   return null;
 };

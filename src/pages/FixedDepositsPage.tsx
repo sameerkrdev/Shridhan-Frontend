@@ -640,7 +640,12 @@ const FixedDepositsPage = () => {
                     <TableCell>
                       {projectType.maturityCalculationMethod === "MULTIPLE_OF_PRINCIPAL"
                         ? `${projectType.maturityMultiple}× principal`
-                        : `${projectType.maturityAmountPerHundred} per Rs.100`}
+                        : projectType.maturityCalculationMethod === "COMPOUNDING_INTEREST"
+                          ? `${projectType.maturityAmountPerHundred}% p.a. compound · ${projectType.duration} mo`
+                          : projectType.maturityCalculationMethod === "SIMPLE_INTEREST" ||
+                              projectType.maturityCalculationMethod === "INTEREST_MATURITY"
+                            ? `${projectType.maturityAmountPerHundred}% p.a. simple · ${projectType.duration} mo`
+                            : `${projectType.maturityAmountPerHundred} per Rs.100`}
                     </TableCell>
                     <TableCell>
                       {projectType.isDeleted ? (

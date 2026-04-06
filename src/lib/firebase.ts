@@ -10,13 +10,12 @@ const firebaseConfig = {
 
 const isConfigured = Boolean(
   firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.appId,
+  firebaseConfig.authDomain &&
+  firebaseConfig.projectId &&
+  firebaseConfig.appId,
 );
 
 const app = isConfigured ? initializeApp(firebaseConfig) : null;
 
 export const firestoreDb = app ? getFirestore(app) : null;
 export const isFirebaseConfigured = isConfigured;
-

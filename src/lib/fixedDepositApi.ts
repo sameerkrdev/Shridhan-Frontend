@@ -4,7 +4,12 @@ export type PaymentMethod = "UPI" | "CASH" | "CHEQUE";
 export type TransactionType = "CREDIT" | "PAYOUT";
 export type ServiceStatus = "ACTIVE" | "COMPLETED" | "CLOSED";
 
-export type MaturityCalculationMethod = "PER_RS_100" | "MULTIPLE_OF_PRINCIPAL";
+export type MaturityCalculationMethod =
+  | "PER_RS_100"
+  | "MULTIPLE_OF_PRINCIPAL"
+  | "INTEREST_MATURITY"
+  | "SIMPLE_INTEREST"
+  | "COMPOUNDING_INTEREST";
 
 export interface FixedDepositProjectType {
   id: string;
@@ -57,6 +62,11 @@ export interface FixedDepositTransaction {
 
 export interface FixedDepositAccount {
   id: string;
+  /** Opening / agreed principal; unchanged by early-payout principal recalculation. */
+  originalPrincipalAmount?: string;
+  /** Opening / agreed maturity amount; unchanged by early-payout principal recalculation. */
+  originalMaturityAmount?: string;
+  /** Current book principal (may be reduced after approved early payout with recalculation). */
   principalAmount: string;
   startDate: string;
   maturityDate: string;
@@ -175,6 +185,44 @@ export interface AddTransactionPayload {
   bankName?: string;
   chequeNumber?: string;
   month?: number;
+  fdEarlyPayoutRequestId?: string;
+}
+
+export type FdEarlyPayoutRequestStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "INVALIDATED";
+
+export interface FdEarlyPayoutRequest {
+  id: string;
+  fixDepositId: string;
+  requestedByMembershipId: string;
+  amount: string;
+  reason: string | null;
+  expiresAt: string;
+  status: FdEarlyPayoutRequestStatus;
+  recalculatePrincipalAndMaturity: boolean;
+  approvedByMembershipId: string | null;
+  approvedAt: string | null;
+  rejectedByMembershipId: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  invalidationReason: string | null;
+  linkedTransactions?: Array<{ id: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFdEarlyPayoutRequestPayload {
+  amount: number;
+  ttlDays?: number;
+  expiresAt?: string;
+  recalculatePrincipalAndMaturity?: boolean;
+  reason?: string;
+  /** When you can approve, set true to create PENDING for others instead of auto-approve. */
+  submitForApproverReview?: boolean;
 }
 
 export interface UpdateFdStatusPayload {
@@ -274,9 +322,65 @@ export const addTransaction = async (
   fdId: string,
   payload: AddTransactionPayload,
 ) => {
-  const { data } = await apiClient.post<FixedDepositTransaction>(
-    `/fixed-deposits/${fdId}/transactions`,
+  const { data } = await apiClient.post<{
+    transaction: FixedDepositTransaction;
+    fdDetail: FixedDepositDetail;
+  }>(`/fixed-deposits/${fdId}/transactions`, payload);
+  return data;
+};
+
+export const createFdEarlyPayoutRequest = async (
+  _societyId: string,
+  fdId: string,
+  payload: CreateFdEarlyPayoutRequestPayload,
+) => {
+  const { data } = await apiClient.post<FdEarlyPayoutRequest>(
+    `/fixed-deposits/${fdId}/early-payout-requests`,
     payload,
+  );
+  return data;
+};
+
+export const listFdEarlyPayoutRequests = async (_societyId: string, fdId: string) => {
+  const { data } = await apiClient.get<{ requests: FdEarlyPayoutRequest[] }>(
+    `/fixed-deposits/${fdId}/early-payout-requests`,
+  );
+  return data.requests;
+};
+
+export const listPendingFdEarlyPayoutRequests = async (_societyId: string) => {
+  const { data } = await apiClient.get<{
+    requests: Array<
+      FdEarlyPayoutRequest & {
+        fixDeposit: { id: string; customer: { id: string; fullName: string; phone: string } };
+        requestedByDisplayName: string;
+        expiresAtDisplay: string;
+      }
+    >;
+  }>("/fixed-deposits/early-payout-requests/pending");
+  return data.requests;
+};
+
+export const approveFdEarlyPayoutRequest = async (
+  _societyId: string,
+  requestId: string,
+  body?: { recalculatePrincipalAndMaturity?: boolean },
+) => {
+  const { data } = await apiClient.post<FdEarlyPayoutRequest>(
+    `/fixed-deposits/early-payout-requests/${requestId}/approve`,
+    body ?? {},
+  );
+  return data;
+};
+
+export const rejectFdEarlyPayoutRequest = async (
+  _societyId: string,
+  requestId: string,
+  payload?: { rejectionReason?: string },
+) => {
+  const { data } = await apiClient.post<FdEarlyPayoutRequest>(
+    `/fixed-deposits/early-payout-requests/${requestId}/reject`,
+    payload ?? {},
   );
   return data;
 };
@@ -351,13 +455,16 @@ export const completeFdDocumentUpload = async (
   return data;
 };
 
-/** Matches server rules in fixedDepositService (per Rs.100 vs principal × multiple). */
+/** Matches server rules in fixedDepositService. */
 export const computeFdMaturityAmountPreview = (
   depositAmount: number,
   projectType:
     | Pick<
         FixedDepositProjectType,
-        "maturityCalculationMethod" | "maturityAmountPerHundred" | "maturityMultiple"
+        | "maturityCalculationMethod"
+        | "maturityAmountPerHundred"
+        | "maturityMultiple"
+        | "duration"
       >
     | null
     | undefined,
@@ -366,6 +473,16 @@ export const computeFdMaturityAmountPreview = (
   const method = projectType.maturityCalculationMethod ?? "PER_RS_100";
   if (method === "MULTIPLE_OF_PRINCIPAL") {
     return depositAmount * Number(projectType.maturityMultiple);
+  }
+  if (method === "COMPOUNDING_INTEREST") {
+    const rate = Number(projectType.maturityAmountPerHundred) / 100;
+    const years = projectType.duration / 12;
+    return Number((depositAmount * Math.pow(1 + rate, years)).toFixed(2));
+  }
+  if (method === "INTEREST_MATURITY" || method === "SIMPLE_INTEREST") {
+    const rate = Number(projectType.maturityAmountPerHundred);
+    const years = projectType.duration / 12;
+    return depositAmount + (depositAmount * rate * years) / 100;
   }
   return (depositAmount / 100) * Number(projectType.maturityAmountPerHundred);
 };
