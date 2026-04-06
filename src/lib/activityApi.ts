@@ -29,7 +29,7 @@ export interface ActivityListResponse {
 }
 
 export const listActivities = async (
-  societyId: string,
+  _societyId: string,
   params: {
     entityType?: ActivityEntityType;
     entityId?: string;
@@ -43,7 +43,6 @@ export const listActivities = async (
   },
 ) => {
   const response = await apiClient.get<ActivityListResponse>("/activity", {
-    headers: { "x-society-id": societyId },
     params,
   });
   return response.data;

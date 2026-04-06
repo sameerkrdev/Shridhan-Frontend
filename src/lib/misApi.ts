@@ -120,12 +120,8 @@ export interface MisReferrerMember {
   };
 }
 
-const societyHeader = (societyId: string) => ({
-  headers: { "x-society-id": societyId },
-});
-
 export const createMisProjectType = async (
-  societyId: string,
+  _societyId: string,
   payload: {
     name: string;
     duration: number;
@@ -139,17 +135,15 @@ export const createMisProjectType = async (
   const { data } = await apiClient.post<MisProjectType>(
     "/mis/project-types",
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const listMisProjectTypes = async (
-  societyId: string,
+  _societyId: string,
   options?: { includeDeleted?: boolean; includeArchived?: boolean },
 ) => {
   const { data } = await apiClient.get<{ projectTypes: MisProjectType[] }>("/mis/project-types", {
-    ...societyHeader(societyId),
     params: {
       includeDeleted: options?.includeDeleted ? "true" : "false",
       includeArchived: options?.includeArchived ? "true" : "false",
@@ -159,7 +153,7 @@ export const listMisProjectTypes = async (
 };
 
 export const createMisAccount = async (
-  societyId: string,
+  _societyId: string,
   payload: {
     referrerMembershipId: string;
     customer: {
@@ -199,12 +193,12 @@ export const createMisAccount = async (
     }>;
   },
 ) => {
-  const { data } = await apiClient.post<MisAccount>("/mis", payload, societyHeader(societyId));
+  const { data } = await apiClient.post<MisAccount>("/mis", payload);
   return data;
 };
 
 export const updateMisAccount = async (
-  societyId: string,
+  _societyId: string,
   misId: string,
   payload: {
     customer: {
@@ -229,20 +223,19 @@ export const updateMisAccount = async (
     };
   },
 ) => {
-  const { data } = await apiClient.patch<MisDetail>(`/mis/${misId}`, payload, societyHeader(societyId));
+  const { data } = await apiClient.patch<MisDetail>(`/mis/${misId}`, payload);
   return data;
 };
 
-export const listMisReferrerMembers = async (societyId: string) => {
+export const listMisReferrerMembers = async (_societyId: string) => {
   const { data } = await apiClient.get<{ members: MisReferrerMember[] }>(
     "/mis/referrers",
-    societyHeader(societyId),
   );
   return data.members;
 };
 
 export const listMisAccounts = async (
-  societyId: string,
+  _societyId: string,
   params: {
     page: number;
     pageSize: number;
@@ -260,7 +253,6 @@ export const listMisAccounts = async (
   },
 ) => {
   const { data } = await apiClient.get<PaginatedMisAccounts>("/mis", {
-    ...societyHeader(societyId),
     params: {
       page: params.page,
       pageSize: params.pageSize,
@@ -273,13 +265,13 @@ export const listMisAccounts = async (
   return data;
 };
 
-export const getMisDetail = async (societyId: string, misId: string) => {
-  const { data } = await apiClient.get<MisDetail>(`/mis/${misId}`, societyHeader(societyId));
+export const getMisDetail = async (_societyId: string, misId: string) => {
+  const { data } = await apiClient.get<MisDetail>(`/mis/${misId}`);
   return data;
 };
 
 export const addMisDeposit = async (
-  societyId: string,
+  _societyId: string,
   misId: string,
   payload: {
     amount: number;
@@ -293,13 +285,12 @@ export const addMisDeposit = async (
   const { data } = await apiClient.post<MisTransaction>(
     `/mis/${misId}/deposit`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const payMisInterest = async (
-  societyId: string,
+  _societyId: string,
   misId: string,
   payload: {
     month?: number;
@@ -315,13 +306,12 @@ export const payMisInterest = async (
   const { data } = await apiClient.post<{ success: boolean }>(
     `/mis/${misId}/pay-interest`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const returnMisPrincipal = async (
-  societyId: string,
+  _societyId: string,
   misId: string,
   payload?: {
     paymentMethod?: PaymentMethod;
@@ -334,29 +324,26 @@ export const returnMisPrincipal = async (
   const { data } = await apiClient.post<MisTransaction>(
     `/mis/${misId}/return-principal`,
     payload ?? {},
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const deleteMisProjectType = async (societyId: string, projectTypeId: string) => {
+export const deleteMisProjectType = async (_societyId: string, projectTypeId: string) => {
   const { data } = await apiClient.delete<{ success: boolean }>(
     `/mis/project-types/${projectTypeId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const deleteMisAccount = async (societyId: string, misId: string) => {
+export const deleteMisAccount = async (_societyId: string, misId: string) => {
   const { data } = await apiClient.delete<{ success: boolean }>(
     `/mis/${misId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const requestMisDocumentUploadUrl = async (
-  societyId: string,
+  _societyId: string,
   misId: string,
   payload: {
     fileName: string;
@@ -369,19 +356,18 @@ export const requestMisDocumentUploadUrl = async (
     document: MisDocument;
     uploadUrl: string;
     fileUrl: string;
-  }>(`/mis/${misId}/documents/upload-url`, payload, societyHeader(societyId));
+  }>(`/mis/${misId}/documents/upload-url`, payload);
   return data;
 };
 
 export const completeMisDocumentUpload = async (
-  societyId: string,
+  _societyId: string,
   misId: string,
   documentId: string,
 ) => {
   const { data } = await apiClient.post<MisDocument>(
     `/mis/${misId}/documents/${documentId}/complete`,
     {},
-    societyHeader(societyId),
   );
   return data;
 };

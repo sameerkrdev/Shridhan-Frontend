@@ -192,54 +192,46 @@ export interface RequestDocumentUploadPayload {
   sizeBytes?: number;
 }
 
-const societyHeader = (societyId: string) => ({
-  headers: { "x-society-id": societyId },
-});
-
-export const createProjectType = async (societyId: string, payload: CreateProjectTypePayload) => {
+export const createProjectType = async (_societyId: string, payload: CreateProjectTypePayload) => {
   const { data } = await apiClient.post<FixedDepositProjectType>(
     "/fixed-deposits/project-types",
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const listProjectTypes = async (societyId: string, includeDeleted = false) => {
+export const listProjectTypes = async (_societyId: string, includeDeleted = false) => {
   const { data } = await apiClient.get<{ projectTypes: FixedDepositProjectType[] }>(
     "/fixed-deposits/project-types",
     {
-      ...societyHeader(societyId),
       params: { includeDeleted: includeDeleted ? "true" : "false" },
     },
   );
   return data.projectTypes;
 };
 
-export const createFdAccount = async (societyId: string, payload: CreateFdAccountPayload) => {
+export const createFdAccount = async (_societyId: string, payload: CreateFdAccountPayload) => {
   const { data } = await apiClient.post<FixedDepositAccount>(
     "/fixed-deposits",
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const updateFdAccount = async (
-  societyId: string,
+  _societyId: string,
   fdId: string,
   payload: UpdateFdAccountPayload,
 ) => {
   const { data } = await apiClient.patch<FixedDepositDetail>(
     `/fixed-deposits/${fdId}`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const listFdAccounts = async (
-  societyId: string,
+  _societyId: string,
   sorting?: {
     sortBy?:
       | "id"
@@ -259,7 +251,6 @@ export const listFdAccounts = async (
   const { data } = await apiClient.get<{ fixedDeposits: FixedDepositAccount[] }>(
     "/fixed-deposits",
     {
-      ...societyHeader(societyId),
       params: {
         sortBy: sorting?.sortBy,
         sortOrder: sorting?.sortOrder,
@@ -271,79 +262,72 @@ export const listFdAccounts = async (
   return data.fixedDeposits;
 };
 
-export const getFdDetail = async (societyId: string, fdId: string) => {
+export const getFdDetail = async (_societyId: string, fdId: string) => {
   const { data } = await apiClient.get<FixedDepositDetail>(
     `/fixed-deposits/${fdId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const addTransaction = async (
-  societyId: string,
+  _societyId: string,
   fdId: string,
   payload: AddTransactionPayload,
 ) => {
   const { data } = await apiClient.post<FixedDepositTransaction>(
     `/fixed-deposits/${fdId}/transactions`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const updateFdStatus = async (
-  societyId: string,
+  _societyId: string,
   fdId: string,
   payload: UpdateFdStatusPayload,
 ) => {
   const { data } = await apiClient.patch<FixedDepositAccount>(
     `/fixed-deposits/${fdId}/status`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const updateProjectTypeStatus = async (
-  societyId: string,
+  _societyId: string,
   projectTypeId: string,
   payload: UpdateProjectTypeStatusPayload,
 ) => {
   const { data } = await apiClient.patch<FixedDepositProjectType>(
     `/fixed-deposits/project-types/${projectTypeId}/status`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const deleteProjectType = async (societyId: string, projectTypeId: string) => {
+export const deleteProjectType = async (_societyId: string, projectTypeId: string) => {
   const { data } = await apiClient.delete<{ success: boolean }>(
     `/fixed-deposits/project-types/${projectTypeId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const deleteFdAccount = async (societyId: string, fdId: string) => {
+export const deleteFdAccount = async (_societyId: string, fdId: string) => {
   const { data } = await apiClient.delete<{ success: boolean }>(
     `/fixed-deposits/${fdId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const listFdReferrerMembers = async (societyId: string) => {
+export const listFdReferrerMembers = async (_societyId: string) => {
   const { data } = await apiClient.get<{ members: ReferrerMember[] }>(
     "/fixed-deposits/referrers",
-    societyHeader(societyId),
   );
   return data.members;
 };
 
 export const requestFdDocumentUploadUrl = async (
-  societyId: string,
+  _societyId: string,
   fdId: string,
   payload: RequestDocumentUploadPayload,
 ) => {
@@ -351,19 +335,18 @@ export const requestFdDocumentUploadUrl = async (
     document: FixedDepositDocument;
     uploadUrl: string;
     fileUrl: string;
-  }>(`/fixed-deposits/${fdId}/documents/upload-url`, payload, societyHeader(societyId));
+  }>(`/fixed-deposits/${fdId}/documents/upload-url`, payload);
   return data;
 };
 
 export const completeFdDocumentUpload = async (
-  societyId: string,
+  _societyId: string,
   fdId: string,
   documentId: string,
 ) => {
   const { data } = await apiClient.post<FixedDepositDocument>(
     `/fixed-deposits/${fdId}/documents/${documentId}/complete`,
     {},
-    societyHeader(societyId),
   );
   return data;
 };

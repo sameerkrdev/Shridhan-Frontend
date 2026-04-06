@@ -194,12 +194,8 @@ export interface RdPreviewPayResponse {
   }>;
 }
 
-const societyHeader = (societyId: string) => ({
-  headers: { "x-society-id": societyId },
-});
-
 export const createRdProjectType = async (
-  societyId: string,
+  _societyId: string,
   payload: {
     name: string;
     duration: number;
@@ -216,19 +212,17 @@ export const createRdProjectType = async (
   const { data } = await apiClient.post<RdProjectType>(
     "/recurring-deposits/project-types",
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const listRdProjectTypes = async (
-  societyId: string,
+  _societyId: string,
   options?: { includeDeleted?: boolean; includeArchived?: boolean },
 ) => {
   const { data } = await apiClient.get<{ projectTypes: RdProjectType[] }>(
     "/recurring-deposits/project-types",
     {
-      ...societyHeader(societyId),
       params: {
         includeDeleted: options?.includeDeleted ? "true" : "false",
         includeArchived: options?.includeArchived ? "true" : "false",
@@ -239,7 +233,7 @@ export const listRdProjectTypes = async (
 };
 
 export const createRdAccount = async (
-  societyId: string,
+  _societyId: string,
   payload: {
     referrerMembershipId: string;
     customer: {
@@ -273,12 +267,12 @@ export const createRdAccount = async (
     };
   },
 ) => {
-  const { data } = await apiClient.post("/recurring-deposits", payload, societyHeader(societyId));
+  const { data } = await apiClient.post("/recurring-deposits", payload);
   return data;
 };
 
 export const updateRdAccount = async (
-  societyId: string,
+  _societyId: string,
   rdId: string,
   payload: {
     customer: {
@@ -302,21 +296,19 @@ export const updateRdAccount = async (
   const { data } = await apiClient.patch<RdDetail>(
     `/recurring-deposits/${rdId}`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const listRdReferrerMembers = async (societyId: string) => {
+export const listRdReferrerMembers = async (_societyId: string) => {
   const { data } = await apiClient.get<{ members: RdReferrerMember[] }>(
     "/recurring-deposits/referrers",
-    societyHeader(societyId),
   );
   return data.members;
 };
 
 export const listRdAccounts = async (
-  societyId: string,
+  _societyId: string,
   params: {
     page: number;
     pageSize: number;
@@ -327,7 +319,6 @@ export const listRdAccounts = async (
   },
 ) => {
   const { data } = await apiClient.get<PaginatedRdAccounts>("/recurring-deposits", {
-    ...societyHeader(societyId),
     params: {
       page: params.page,
       pageSize: params.pageSize,
@@ -340,16 +331,15 @@ export const listRdAccounts = async (
   return data;
 };
 
-export const getRdDetail = async (societyId: string, rdId: string) => {
+export const getRdDetail = async (_societyId: string, rdId: string) => {
   const { data } = await apiClient.get<RdDetail>(
     `/recurring-deposits/${rdId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const previewRdPayment = async (
-  societyId: string,
+  _societyId: string,
   rdId: string,
   payload: {
     amount?: number;
@@ -362,13 +352,12 @@ export const previewRdPayment = async (
   const { data } = await apiClient.post<RdPreviewPayResponse>(
     `/recurring-deposits/${rdId}/preview-pay`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const payRd = async (
-  societyId: string,
+  _societyId: string,
   rdId: string,
   payload: {
     amount: number;
@@ -386,13 +375,12 @@ export const payRd = async (
   const { data } = await apiClient.post(
     `/recurring-deposits/${rdId}/pay`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const withdrawRd = async (
-  societyId: string,
+  _societyId: string,
   rdId: string,
   payload?: {
     deductDeferredFinesFromMaturity?: boolean;
@@ -407,13 +395,12 @@ export const withdrawRd = async (
   const { data } = await apiClient.post(
     `/recurring-deposits/${rdId}/withdraw`,
     payload ?? {},
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const createRdFineWaiveRequest = async (
-  societyId: string,
+  _societyId: string,
   rdId: string,
   payload: {
     scopeType: "all" | "selected";
@@ -428,64 +415,57 @@ export const createRdFineWaiveRequest = async (
   const { data } = await apiClient.post<RdFineWaiveRequest>(
     `/recurring-deposits/${rdId}/fine-waive-requests`,
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const listRdFineWaiveRequests = async (societyId: string, rdId: string) => {
+export const listRdFineWaiveRequests = async (_societyId: string, rdId: string) => {
   const { data } = await apiClient.get<{ requests: RdFineWaiveRequest[] }>(
     `/recurring-deposits/${rdId}/fine-waive-requests`,
-    societyHeader(societyId),
   );
   return data.requests;
 };
 
-export const listPendingRdFineWaiveRequests = async (societyId: string) => {
+export const listPendingRdFineWaiveRequests = async (_societyId: string) => {
   const { data } = await apiClient.get<{ requests: Array<RdFineWaiveRequest & { recurringDeposit: { id: string; customer: { fullName: string; phone: string } } }> }>(
     "/recurring-deposits/fine-waive-requests/pending",
-    societyHeader(societyId),
   );
   return data.requests;
 };
 
 export const approveRdFineWaiveRequest = async (
-  societyId: string,
+  _societyId: string,
   requestId: string,
 ) => {
   const { data } = await apiClient.post<RdFineWaiveRequest>(
     `/recurring-deposits/fine-waive-requests/${requestId}/approve`,
     {},
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const rejectRdFineWaiveRequest = async (
-  societyId: string,
+  _societyId: string,
   requestId: string,
   payload?: { rejectionReason?: string },
 ) => {
   const { data } = await apiClient.post<RdFineWaiveRequest>(
     `/recurring-deposits/fine-waive-requests/${requestId}/reject`,
     payload ?? {},
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const deleteRdProjectType = async (societyId: string, projectTypeId: string) => {
+export const deleteRdProjectType = async (_societyId: string, projectTypeId: string) => {
   const { data } = await apiClient.delete<{ success: boolean }>(
     `/recurring-deposits/project-types/${projectTypeId}`,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const deleteRdAccount = async (societyId: string, rdId: string) => {
+export const deleteRdAccount = async (_societyId: string, rdId: string) => {
   const { data } = await apiClient.delete<{ success: boolean }>(
     `/recurring-deposits/${rdId}`,
-    societyHeader(societyId),
   );
   return data;
 };
