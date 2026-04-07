@@ -148,7 +148,10 @@ export const NotificationsPopover = () => {
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[360px] p-0">
+      <PopoverContent
+        align="end"
+        className="w-[calc(100vw-1rem)] max-w-[380px] p-0"
+      >
         <div className="border-b px-3 py-2 text-sm font-semibold">Notifications</div>
         <div className="max-h-[420px] overflow-auto">
           {loading ? (
@@ -171,8 +174,11 @@ export const NotificationsPopover = () => {
                 row.notificationType === "RD_FINE_WAIVE_REQUEST" &&
                 Boolean(requestId);
               return (
-                <div key={row.docId} className={`border-b px-3 py-2 ${row.isRead ? "" : "bg-muted/20"}`}>
-                  <div className="flex items-center justify-between gap-2">
+                <div
+                  key={row.docId}
+                  className={`border-b px-3 py-2 ${row.isRead ? "" : "bg-muted/20"}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
                     <p className="line-clamp-1 text-sm font-medium">{label}</p>
                     {!row.isRead ? <span className="h-2 w-2 rounded-full bg-blue-500" /> : null}
                   </div>
@@ -226,10 +232,11 @@ export const NotificationsPopover = () => {
                       </label>
                     </div>
                   ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                     <Button
                       size="sm"
                       variant="outline"
+                      className="w-full sm:w-auto"
                       onClick={() => {
                         void markAsRead(row.docId);
                         navigate(`/notifications?docId=${encodeURIComponent(row.docId)}`);
@@ -241,6 +248,7 @@ export const NotificationsPopover = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={() => {
                           void markAsRead(row.docId);
                           navigate(accountRoute);
@@ -253,6 +261,7 @@ export const NotificationsPopover = () => {
                       <>
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           disabled={actionPending}
                           onClick={() => {
                             void markAsRead(row.docId);
@@ -264,6 +273,7 @@ export const NotificationsPopover = () => {
                         <Button
                           size="sm"
                           variant="destructive"
+                          className="w-full sm:w-auto"
                           disabled={actionPending}
                           onClick={() => {
                             void markAsRead(row.docId);
@@ -281,6 +291,7 @@ export const NotificationsPopover = () => {
                       <>
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           disabled={actionPending}
                           onClick={() => {
                             void markAsRead(row.docId);
@@ -297,6 +308,7 @@ export const NotificationsPopover = () => {
                         <Button
                           size="sm"
                           variant="destructive"
+                          className="w-full sm:w-auto"
                           disabled={actionPending}
                           onClick={() => {
                             void markAsRead(row.docId);

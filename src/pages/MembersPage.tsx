@@ -37,6 +37,7 @@ import {
   useRemoveMemberMutation,
 } from "@/hooks/useMembershipApi";
 import { AddMemberDialog } from "@/dialogs/AddMemberDialog";
+import { EditMemberDialog } from "@/dialogs/EditMemberDialog";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
 import type { MembershipStatus } from "@/types/auth";
@@ -54,6 +55,7 @@ const MembersPage = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showDeletedUsers, setShowDeletedUsers] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<MembershipWithUser | null>(null);
+  const [editTarget, setEditTarget] = useState<MembershipWithUser | null>(null);
 
   const selectedMembership = useAuthSessionStore((s) => s.selectedMembership);
   const societyId = selectedMembership?.societyId ?? null;
@@ -135,7 +137,7 @@ const MembersPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
           Manage Members
         </h1>
         <p className="text-muted-foreground mt-2">Add, manage, and control access for society members</p>
@@ -274,6 +276,16 @@ const MembersPage = () => {
                       {!m.deletedAt && isLastOwner(m) ? (
                         <div className="text-[11px] text-amber-600 mt-1">Last owner cannot be removed.</div>
                       ) : null}
+                      {!m.deletedAt && canManageTarget(m) ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2"
+                          onClick={() => setEditTarget(m)}
+                        >
+                          Edit
+                        </Button>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))
@@ -291,6 +303,16 @@ const MembersPage = () => {
         onOpenChange={setIsAddOpen}
         societyId={societyId ?? ""}
       />
+      {editTarget ? (
+        <EditMemberDialog
+          open={Boolean(editTarget)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setEditTarget(null);
+          }}
+          member={editTarget}
+          societyId={societyId ?? ""}
+        />
+      ) : null}
 
       <AlertDialog open={Boolean(removeTarget)} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <AlertDialogContent>

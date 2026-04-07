@@ -46,12 +46,12 @@ export const ActivityHistory = ({
         <p className="text-sm text-muted-foreground">No activities yet.</p>
       ) : (
         <div className="w-full max-w-full overflow-x-auto rounded-md border">
-          <Table className="min-w-[560px] table-fixed">
+          <Table className="min-w-[760px] table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/40">
                 <TableHead>When</TableHead>
                 <TableHead>Actor</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead className="min-w-[220px]">Action</TableHead>
                 <TableHead className="min-w-[140px]">Details</TableHead>
               </TableRow>
             </TableHeader>
@@ -64,7 +64,9 @@ export const ActivityHistory = ({
                   <TableCell className="max-w-[220px] whitespace-normal wrap-break-word">
                     {item.actorName} ({item.actorPhone}) • {item.actorRoleName}
                   </TableCell>
-                  <TableCell>{item.actionType.replaceAll("_", " ")}</TableCell>
+                  <TableCell className="min-w-[220px]">
+                    {item.actionType.replaceAll("_", " ")}
+                  </TableCell>
                   <TableCell className="max-w-[min(280px,40vw)] whitespace-normal wrap-break-word text-muted-foreground">
                     {formatMetadata(item.metadata)}
                   </TableCell>

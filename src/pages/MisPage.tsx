@@ -425,7 +425,7 @@ const MisPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
           Monthly Interest Scheme
         </h1>
         <p className="text-muted-foreground mt-2">Manage MIS project types, accounts, deposits, and monthly payouts.</p>
@@ -961,7 +961,7 @@ const MisPage = () => {
       </Dialog>
 
       <Dialog open={isAdvancedFilterOpen} onOpenChange={setIsAdvancedFilterOpen}>
-        <DialogContent className="max-w-full sm:max-w-2lg md:max-w-3xl lg:max-w-4xl ">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Advanced Filters</DialogTitle>
             <DialogDescription>Create custom filter combinations to narrow MIS account rows</DialogDescription>

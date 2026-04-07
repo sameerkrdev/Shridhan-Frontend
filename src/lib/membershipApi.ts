@@ -102,8 +102,10 @@ export const addMember = async (
     userId?: string;
     emailOrPhone?: string;
     name?: string;
-    email: string;
+    email?: string;
     phone?: string;
+    phoneOtp?: string;
+    emailOtp?: string;
     roleId: string;
   },
 ) => {
@@ -111,6 +113,54 @@ export const addMember = async (
     "/memberships",
     payload,
   );
+  return data;
+};
+
+export const updateMemberContact = async (
+  _societyId: string,
+  membershipId: string,
+  payload: {
+    phone?: string;
+    email?: string;
+    phoneOtp?: string;
+    emailOtp?: string;
+  },
+) => {
+  const { data } = await apiClient.patch<MembershipWithUser>(`/memberships/${membershipId}/contact`, payload);
+  return data;
+};
+
+export const sendMemberPhoneOtp = async (phone: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/phone/send", {
+    phone,
+    reason: "verify-phone",
+  });
+  return data;
+};
+
+export const verifyMemberPhoneOtp = async (phone: string, otp: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/phone/verify", {
+    phone,
+    otp,
+    reason: "verify-phone",
+  });
+  return data;
+};
+
+export const sendMemberEmailOtp = async (email: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/email/send", {
+    email,
+    reason: "verify-email",
+  });
+  return data;
+};
+
+export const verifyMemberEmailOtp = async (email: string, otp: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/email/verify", {
+    email,
+    otp,
+    reason: "verify-email",
+  });
   return data;
 };
 
@@ -178,11 +228,13 @@ export const getMyMemberships = async () => {
 };
 
 export const leaveCurrentSociety = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.delete<{ success: boolean }>("/memberships/me");
   return data;
 };
 
 export const listCustomRoles = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.get<{ roles: SocietyCustomRole[] }>(
     "/memberships/custom-roles",
   );
@@ -201,6 +253,7 @@ export const createCustomRole = async (
 };
 
 export const getRolePermissionMatrix = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.get<RolePermissionMatrix>(
     "/memberships/custom-roles/matrix",
   );
@@ -220,6 +273,7 @@ export const updateMatrixRolePermissions = async (
 };
 
 export const getAssignableRoleOptions = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.get<AssignableRoleOptionsResponse>(
     "/memberships/role-options",
   );

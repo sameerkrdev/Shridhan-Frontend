@@ -533,7 +533,7 @@ export const CreateMisAccountDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[820px]">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-[820px]">
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit MIS Account" : "Create MIS Account"}</DialogTitle>
           <DialogDescription>
@@ -660,11 +660,21 @@ export const CreateMisAccountDialog = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.nominees?.[index]?.relation ? (
+                      <p className="text-sm text-destructive">
+                        {errors.nominees[index]?.relation?.message}
+                      </p>
+                    ) : null}
                   </div>
                   {nomineeValues?.[index]?.relation === "OTHER" ? (
                     <div className="space-y-2">
                       <Label>Custom Relation</Label>
                       <Input {...register(`nominees.${index}.customRelation`)} />
+                      {errors.nominees?.[index]?.customRelation ? (
+                        <p className="text-sm text-destructive">
+                          {errors.nominees[index]?.customRelation?.message}
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
                   <div className="space-y-2">
@@ -886,27 +896,27 @@ export const CreateMisAccountDialog = ({
                 Selected Project Type
               </p>
               <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Name</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {selectedProjectType?.name ?? "N/A"}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Duration</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {selectedProjectType ? `${selectedProjectType.duration} months` : "N/A"}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Minimum Amount</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {formatCurrency(selectedProjectTypeMinimumAmount)}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Interest Config</span>
-                  <span className="font-medium text-right">{interestTypePreview}</span>
+                  <span className="font-medium sm:text-right">{interestTypePreview}</span>
                 </div>
               </div>
             </div>
@@ -915,39 +925,39 @@ export const CreateMisAccountDialog = ({
                 Calculation Preview
               </p>
               <div className="rounded-md border bg-background px-3 py-2 space-y-1.5">
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Monthly Interest</span>
-                  <span className="font-semibold text-right">
+                  <span className="font-semibold sm:text-right">
                     {formatCurrency(monthlyInterestPreview)}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Maturity Date</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {maturityDatePreview ? formatDate(maturityDatePreview) : "N/A"}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Total Interest</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {formatCurrency(totalInterestPreview)}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Principal Return</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {formatCurrency(Number(depositAmount || 0))}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Total Return</span>
-                  <span className="font-semibold text-right text-emerald-700">
+                  <span className="font-semibold text-emerald-700 sm:text-right">
                     {formatCurrency(totalReturnPreview)}
                   </span>
                 </div>
-                <div className="grid grid-cols-[160px_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[160px_1fr] sm:gap-2">
                   <span className="text-muted-foreground">Remaining Deposit</span>
-                  <span className="font-medium text-right">
+                  <span className="font-medium sm:text-right">
                     {formatCurrency(Math.max(0, depositAmount - initialPaymentAmount))}
                   </span>
                 </div>
@@ -972,7 +982,7 @@ export const CreateMisAccountDialog = ({
             </div>
           ) : null}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
