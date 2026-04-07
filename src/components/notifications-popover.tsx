@@ -1,14 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bell } from "lucide-react";
 import { useNavigate } from "react-router";
-import { collection, doc, limit, onSnapshot, orderBy, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, limit, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  useApproveFdEarlyPayoutRequestMutation,
+  useRejectFdEarlyPayoutRequestMutation,
+} from "@/hooks/useFixedDepositApi";
+import {
+  useApproveRdFineWaiveRequestMutation,
+  useRejectRdFineWaiveRequestMutation,
+} from "@/hooks/useRdApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { firestoreDb, isFirebaseConfigured } from "@/lib/firebase";
+import { formatDateTime } from "@/lib/dateFormat";
+import { hasPermission } from "@/components/Can";
+
+const formatCurrency = (value: string | number | undefined) => {
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "Rs. 0.00";
+  return `Rs. ${amount.toFixed(2)}`;
+};
 
 type NotificationRow = {
   docId: string;
+  requestId?: string;
   status?: string;
   notificationType?: string;
   module?: "rd" | "fd" | "mis";
@@ -19,6 +37,13 @@ type NotificationRow = {
   createdAt?: string;
   readAt?: string | null;
   isRead?: boolean;
+  canAct?: boolean;
+  payoutAmount?: string;
+  recalculatePrincipalAndMaturity?: boolean;
+  requesterName?: string;
+  expiresAt?: string;
+  expiresAtDisplay?: string;
+  actedByName?: string | null;
 };
 
 const getAccountRoute = (row: NotificationRow): string | null => {
@@ -35,8 +60,24 @@ export const NotificationsPopover = () => {
   const selectedMembership = useAuthSessionStore((s) => s.selectedMembership);
   const societyId = selectedMembership?.societyId ?? null;
   const membershipId = selectedMembership?.membershipId ?? null;
+  const permissions = selectedMembership?.permissions ?? [];
+  const canApproveFd = hasPermission(permissions, "fixed_deposit.approve_early_payout");
+  const canApproveRd = hasPermission(permissions, "recurring_deposit.approve_fine_waive");
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fdApproveRecalc, setFdApproveRecalc] = useState<Record<string, boolean>>({});
+
+  const societyIdForApi = societyId ?? "";
+  const approveRdMutation = useApproveRdFineWaiveRequestMutation(societyIdForApi);
+  const rejectRdMutation = useRejectRdFineWaiveRequestMutation(societyIdForApi);
+  const approveFdMutation = useApproveFdEarlyPayoutRequestMutation(societyIdForApi);
+  const rejectFdMutation = useRejectFdEarlyPayoutRequestMutation(societyIdForApi);
+
+  const actionPending =
+    approveRdMutation.isPending ||
+    rejectRdMutation.isPending ||
+    approveFdMutation.isPending ||
+    rejectFdMutation.isPending;
 
   const canUseRealtime = Boolean(societyId && membershipId && firestoreDb && isFirebaseConfigured);
 
@@ -45,22 +86,25 @@ export const NotificationsPopover = () => {
     const q = query(
       collection(firestoreDb, `societies/${societyId}/notifications`),
       where("targetMembershipId", "==", membershipId),
-      orderBy("createdAt", "desc"),
-      limit(20),
+      limit(80),
     );
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setItems(
-          snap.docs.map((d) => {
-            const raw = d.data() as Omit<NotificationRow, "docId">;
-            return {
-              ...raw,
-              docId: d.id,
-              isRead: raw.isRead ?? Boolean(raw.readAt),
-            };
-          }),
+        const next = snap.docs.map((d) => {
+          const raw = d.data() as Omit<NotificationRow, "docId">;
+          return {
+            ...raw,
+            docId: d.id,
+            isRead: raw.isRead ?? Boolean(raw.readAt),
+            canAct: raw.canAct ?? false,
+          };
+        });
+        next.sort(
+          (a, b) =>
+            new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
         );
+        setItems(next.slice(0, 20));
         setLoading(false);
       },
       () => setLoading(false),
@@ -68,7 +112,17 @@ export const NotificationsPopover = () => {
     return () => unsub();
   }, [canUseRealtime, societyId, membershipId]);
 
-  const unreadCount = useMemo(() => items.filter((i) => !i.isRead).length, [items]);
+  const visibleItems = useMemo(
+    () =>
+      items.filter((row) => {
+        if (row.notificationType === "FD_EARLY_PAYOUT_REQUEST" && !canApproveFd) return false;
+        if (row.notificationType === "RD_FINE_WAIVE_REQUEST" && !canApproveRd) return false;
+        return true;
+      }),
+    [items, canApproveFd, canApproveRd],
+  );
+
+  const unreadCount = useMemo(() => visibleItems.filter((i) => !i.isRead).length, [visibleItems]);
 
   const markAsRead = async (docId: string) => {
     if (!societyId || !firestoreDb) return;
@@ -94,30 +148,95 @@ export const NotificationsPopover = () => {
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[360px] p-0">
+      <PopoverContent
+        align="end"
+        className="w-[calc(100vw-1rem)] max-w-[380px] p-0"
+      >
         <div className="border-b px-3 py-2 text-sm font-semibold">Notifications</div>
         <div className="max-h-[420px] overflow-auto">
           {loading ? (
             <div className="px-3 py-4 text-sm text-muted-foreground">Loading...</div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div className="px-3 py-4 text-sm text-muted-foreground">No notifications.</div>
           ) : (
-            items.map((row) => {
+            visibleItems.map((row) => {
               const accountRoute = getAccountRoute(row);
               const label = row.accountLabel ?? row.rdCustomerName ?? "Notification";
+              const requestId = row.requestId;
+              const showFdActions =
+                canApproveFd &&
+                row.canAct &&
+                row.notificationType === "FD_EARLY_PAYOUT_REQUEST" &&
+                Boolean(requestId);
+              const showRdActions =
+                canApproveRd &&
+                row.canAct &&
+                row.notificationType === "RD_FINE_WAIVE_REQUEST" &&
+                Boolean(requestId);
               return (
-                <div key={row.docId} className={`border-b px-3 py-2 ${row.isRead ? "" : "bg-muted/20"}`}>
-                  <div className="flex items-center justify-between gap-2">
+                <div
+                  key={row.docId}
+                  className={`border-b px-3 py-2 ${row.isRead ? "" : "bg-muted/20"}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
                     <p className="line-clamp-1 text-sm font-medium">{label}</p>
                     {!row.isRead ? <span className="h-2 w-2 rounded-full bg-blue-500" /> : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {row.notificationType ?? "Notification"} {row.status ? `• ${row.status}` : ""}
+                    {row.createdAt ? ` • ${formatDateTime(row.createdAt)}` : ""}
                   </p>
-                  <div className="mt-2 flex items-center gap-2">
+                  {row.notificationType === "FD_EARLY_PAYOUT_REQUEST" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Amount:{" "}
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(row.payoutAmount)}
+                      </span>
+                    </p>
+                  ) : null}
+                  {row.notificationType === "FD_EARLY_PAYOUT_REQUEST" && row.requesterName ? (
+                    <p className="text-xs text-muted-foreground">
+                      Requested by: <span className="text-foreground">{row.requesterName}</span>
+                    </p>
+                  ) : null}
+                  {row.notificationType === "FD_EARLY_PAYOUT_REQUEST" &&
+                  (row.expiresAtDisplay || row.expiresAt) ? (
+                    <p className="text-xs text-muted-foreground">
+                      Approval deadline:{" "}
+                      <span className="text-foreground">
+                        {row.expiresAtDisplay?.trim() || formatDateTime(row.expiresAt)}
+                      </span>
+                    </p>
+                  ) : null}
+                  {row.notificationType === "FD_EARLY_PAYOUT_REQUEST" &&
+                  row.status &&
+                  row.status !== "PENDING" &&
+                  row.actedByName ? (
+                    <p className="text-xs text-muted-foreground">
+                      Reviewed by: <span className="text-foreground">{row.actedByName}</span>
+                    </p>
+                  ) : null}
+                  {showFdActions && requestId ? (
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      <Checkbox
+                        id={`popover-fd-recalc-${row.docId}`}
+                        checked={
+                          fdApproveRecalc[requestId] ?? Boolean(row.recalculatePrincipalAndMaturity)
+                        }
+                        onCheckedChange={(c) =>
+                          setFdApproveRecalc((prev) => ({ ...prev, [requestId]: c === true }))
+                        }
+                      />
+                      <label htmlFor={`popover-fd-recalc-${row.docId}`} className="cursor-pointer">
+                        Recalculate principal
+                      </label>
+                    </div>
+                  ) : null}
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                     <Button
                       size="sm"
                       variant="outline"
+                      className="w-full sm:w-auto"
                       onClick={() => {
                         void markAsRead(row.docId);
                         navigate(`/notifications?docId=${encodeURIComponent(row.docId)}`);
@@ -129,6 +248,7 @@ export const NotificationsPopover = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={() => {
                           void markAsRead(row.docId);
                           navigate(accountRoute);
@@ -136,6 +256,71 @@ export const NotificationsPopover = () => {
                       >
                         Go to account
                       </Button>
+                    ) : null}
+                    {showRdActions && requestId ? (
+                      <>
+                        <Button
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          disabled={actionPending}
+                          onClick={() => {
+                            void markAsRead(row.docId);
+                            approveRdMutation.mutate(requestId);
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full sm:w-auto"
+                          disabled={actionPending}
+                          onClick={() => {
+                            void markAsRead(row.docId);
+                            rejectRdMutation.mutate({
+                              requestId,
+                              rejectionReason: "Rejected",
+                            });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
+                    {showFdActions && requestId ? (
+                      <>
+                        <Button
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          disabled={actionPending}
+                          onClick={() => {
+                            void markAsRead(row.docId);
+                            approveFdMutation.mutate({
+                              requestId,
+                              recalculatePrincipalAndMaturity:
+                                fdApproveRecalc[requestId] ??
+                                Boolean(row.recalculatePrincipalAndMaturity),
+                            });
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full sm:w-auto"
+                          disabled={actionPending}
+                          onClick={() => {
+                            void markAsRead(row.docId);
+                            rejectFdMutation.mutate({
+                              requestId,
+                              rejectionReason: "Rejected",
+                            });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </>
                     ) : null}
                   </div>
                 </div>

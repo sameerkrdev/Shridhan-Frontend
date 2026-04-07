@@ -86,7 +86,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ) {
       items.push({ title: "Activities", url: "/activities", icon: IconChartBar });
     }
-    if (hasPermission(permissions, "recurring_deposit.approve_fine_waive")) {
+    if (
+      hasPermission(permissions, "recurring_deposit.approve_fine_waive") ||
+      hasPermission(permissions, "fixed_deposit.approve_early_payout")
+    ) {
       items.push({ title: "Notifications", url: "/notifications", icon: IconBell });
     }
 

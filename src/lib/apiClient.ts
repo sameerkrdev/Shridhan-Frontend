@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
@@ -9,6 +9,18 @@ export const apiClient = axios.create({
   headers: {
     "ngrok-skip-browser-warning": "true",
   },
+});
+
+apiClient.interceptors.request.use((config) => {
+  const societyId = useAuthSessionStore.getState().selectedMembership?.societyId;
+  if (!societyId) return config;
+
+  const headers = AxiosHeaders.from(config.headers ?? {});
+  if (headers.get("x-society-id")) return config;
+
+  headers.set("x-society-id", societyId);
+  config.headers = headers;
+  return config;
 });
 
 let refreshPromise: Promise<void> | null = null;

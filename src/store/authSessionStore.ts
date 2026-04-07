@@ -79,8 +79,10 @@ export const useAuthSessionStore = create<AuthSessionState>()(
           memberships: upsertMembership(state.memberships, membership),
         })),
       setResolvedSociety: (resolved) => {
-        const matched = get().memberships.find((m) => m.societyId === resolved.societyId);
-        const selectedMembership: MembershipSummary = matched ?? {
+        // Always apply the resolve response (fresh role + permissions from API). Previously we reused a
+        // cached membership from `memberships` when present, which dropped updated permissions until
+        // the user logged in again — e.g. new keys like `fixed_deposit.request_early_payout`.
+        const selectedMembership: MembershipSummary = {
           membershipId: resolved.membershipId,
           societyId: resolved.societyId,
           role: resolved.role,

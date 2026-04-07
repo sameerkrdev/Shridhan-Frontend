@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   searchUser,
   addMember,
+  updateMemberContact,
   listMembers,
   updateMemberRole,
   updateMemberStatus,
@@ -15,6 +16,10 @@ import {
   getAssignableRoleOptions,
   getMyMemberships,
   leaveCurrentSociety,
+  sendMemberPhoneOtp,
+  verifyMemberPhoneOtp,
+  sendMemberEmailOtp,
+  verifyMemberEmailOtp,
 } from "@/lib/membershipApi";
 import type { MembershipStatus } from "@/types/auth";
 
@@ -37,10 +42,28 @@ export const useAddMemberMutation = (societyId: string) => {
       userId?: string;
       emailOrPhone?: string;
       name?: string;
-      email: string;
+      email?: string;
       phone?: string;
+      phoneOtp?: string;
+      emailOtp?: string;
       roleId: string;
     }) => addMember(societyId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["members", societyId] });
+    },
+  });
+};
+
+export const useUpdateMemberContactMutation = (societyId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      membershipId,
+      payload,
+    }: {
+      membershipId: string;
+      payload: { phone?: string; email?: string; phoneOtp?: string; emailOtp?: string };
+    }) => updateMemberContact(societyId, membershipId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["members", societyId] });
     },
@@ -163,5 +186,25 @@ export const useAssignableRoleOptionsQuery = (societyId: string | null) => {
     queryKey: ["assignable-role-options", societyId],
     queryFn: () => getAssignableRoleOptions(societyId!),
     enabled: Boolean(societyId),
+  });
+};
+
+export const useSendMemberPhoneOtpMutation = () => {
+  return useMutation({ mutationFn: sendMemberPhoneOtp });
+};
+
+export const useVerifyMemberPhoneOtpMutation = () => {
+  return useMutation({
+    mutationFn: ({ phone, otp }: { phone: string; otp: string }) => verifyMemberPhoneOtp(phone, otp),
+  });
+};
+
+export const useSendMemberEmailOtpMutation = () => {
+  return useMutation({ mutationFn: sendMemberEmailOtp });
+};
+
+export const useVerifyMemberEmailOtpMutation = () => {
+  return useMutation({
+    mutationFn: ({ email, otp }: { email: string; otp: string }) => verifyMemberEmailOtp(email, otp),
   });
 };

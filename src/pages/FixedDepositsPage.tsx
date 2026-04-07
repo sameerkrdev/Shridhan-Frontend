@@ -579,7 +579,7 @@ const FixedDepositsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
           Fixed Deposits
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -640,7 +640,12 @@ const FixedDepositsPage = () => {
                     <TableCell>
                       {projectType.maturityCalculationMethod === "MULTIPLE_OF_PRINCIPAL"
                         ? `${projectType.maturityMultiple}× principal`
-                        : `${projectType.maturityAmountPerHundred} per Rs.100`}
+                        : projectType.maturityCalculationMethod === "COMPOUNDING_INTEREST"
+                          ? `${projectType.maturityAmountPerHundred}% p.a. compound · ${projectType.duration} mo`
+                          : projectType.maturityCalculationMethod === "SIMPLE_INTEREST" ||
+                              projectType.maturityCalculationMethod === "INTEREST_MATURITY"
+                            ? `${projectType.maturityAmountPerHundred}% p.a. simple · ${projectType.duration} mo`
+                            : `${projectType.maturityAmountPerHundred} per Rs.100`}
                     </TableCell>
                     <TableCell>
                       {projectType.isDeleted ? (
@@ -1196,7 +1201,7 @@ const FixedDepositsPage = () => {
       </Dialog>
 
       <Dialog open={isAdvancedFilterOpen} onOpenChange={setIsAdvancedFilterOpen}>
-        <DialogContent className="max-w-full sm:max-w-2lg md:max-w-3xl lg:max-w-4xl ">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Advanced Filters</DialogTitle>
             <DialogDescription>

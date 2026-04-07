@@ -1,15 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addTransaction,
+  approveFdEarlyPayoutRequest,
   completeFdDocumentUpload,
   createFdAccount,
+  createFdEarlyPayoutRequest,
   createProjectType,
   deleteFdAccount,
   deleteProjectType,
   getFdDetail,
+  listFdEarlyPayoutRequests,
   listFdReferrerMembers,
   listFdAccounts,
+  listPendingFdEarlyPayoutRequests,
   listProjectTypes,
+  rejectFdEarlyPayoutRequest,
   requestFdDocumentUploadUrl,
   updateFdAccount,
   updateFdStatus,
@@ -127,10 +132,12 @@ export const useAddTransactionMutation = (societyId: string, fdId: string) => {
       bankName?: string;
       chequeNumber?: string;
       month?: number;
+      fdEarlyPayoutRequestId?: string;
     }) => addTransaction(societyId, fdId, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["fd-detail", societyId, fdId] });
+    onSuccess: (data) => {
+      queryClient.setQueryData(["fd-detail", societyId, fdId], data.fdDetail);
       void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
+      void queryClient.invalidateQueries({ queryKey: ["fd-early-payout-requests", societyId, fdId] });
     },
   });
 };
@@ -149,12 +156,94 @@ export const useAddTransactionForAnyFdMutation = (societyId: string) => {
       bankName?: string;
       chequeNumber?: string;
       month?: number;
+      fdEarlyPayoutRequestId?: string;
     }) => {
       const { fdId, ...transactionPayload } = payload;
       return addTransaction(societyId, fdId, transactionPayload);
     },
-    onSuccess: (_result, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ["fd-detail", societyId, variables.fdId] });
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(["fd-detail", societyId, variables.fdId], data.fdDetail);
+      void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["fd-early-payout-requests", societyId, variables.fdId],
+      });
+    },
+  });
+};
+
+export const useFdEarlyPayoutRequestsQuery = (
+  societyId: string | null,
+  fdId: string | null,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: ["fd-early-payout-requests", societyId, fdId],
+    queryFn: () => listFdEarlyPayoutRequests(societyId!, fdId!),
+    enabled: Boolean(societyId && fdId && enabled),
+  });
+};
+
+export const usePendingFdEarlyPayoutRequestsQuery = (
+  societyId: string | null,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: ["fd-early-payout-requests-pending", societyId],
+    queryFn: () => listPendingFdEarlyPayoutRequests(societyId!),
+    enabled: Boolean(societyId && enabled),
+  });
+};
+
+export const useCreateFdEarlyPayoutRequestMutation = (societyId: string, fdId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof createFdEarlyPayoutRequest>[2]) =>
+      createFdEarlyPayoutRequest(societyId, fdId, payload),
+    onSuccess: async () => {
+      void queryClient.invalidateQueries({ queryKey: ["fd-early-payout-requests", societyId, fdId] });
+      void queryClient.invalidateQueries({ queryKey: ["fd-early-payout-requests-pending", societyId] });
+      const fdDetail = await getFdDetail(societyId, fdId);
+      queryClient.setQueryData(["fd-detail", societyId, fdId], fdDetail);
+      void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
+    },
+  });
+};
+
+export const useApproveFdEarlyPayoutRequestMutation = (societyId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { requestId: string; recalculatePrincipalAndMaturity?: boolean }) =>
+      approveFdEarlyPayoutRequest(societyId, args.requestId, {
+        ...(args.recalculatePrincipalAndMaturity !== undefined
+          ? { recalculatePrincipalAndMaturity: args.recalculatePrincipalAndMaturity }
+          : {}),
+      }),
+    onSuccess: async (request) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["fd-early-payout-requests", societyId, request.fixDepositId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["fd-early-payout-requests-pending", societyId] });
+      const fdDetail = await getFdDetail(societyId, request.fixDepositId);
+      queryClient.setQueryData(["fd-detail", societyId, request.fixDepositId], fdDetail);
+      void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
+    },
+  });
+};
+
+export const useRejectFdEarlyPayoutRequestMutation = (societyId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { requestId: string; rejectionReason?: string }) =>
+      rejectFdEarlyPayoutRequest(societyId, payload.requestId, {
+        rejectionReason: payload.rejectionReason,
+      }),
+    onSuccess: async (request) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["fd-early-payout-requests", societyId, request.fixDepositId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["fd-early-payout-requests-pending", societyId] });
+      const fdDetail = await getFdDetail(societyId, request.fixDepositId);
+      queryClient.setQueryData(["fd-detail", societyId, request.fixDepositId], fdDetail);
       void queryClient.invalidateQueries({ queryKey: ["fd-accounts", societyId] });
     },
   });

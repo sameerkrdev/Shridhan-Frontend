@@ -83,13 +83,13 @@ const ActivitiesPage = () => {
         setToDate("");
       }}>Clear Filters</Button>
 
-      <div className="rounded-md border overflow-auto">
-        <Table>
+      <div className="w-full max-w-full overflow-x-auto rounded-md border">
+        <Table className="min-w-[860px] table-fixed">
           <TableHeader>
             <TableRow className="bg-muted/40">
               <TableHead>When</TableHead>
               <TableHead>Entity</TableHead>
-              <TableHead>Action</TableHead>
+              <TableHead className="min-w-[220px]">Action</TableHead>
               <TableHead>Actor</TableHead>
             </TableRow>
           </TableHeader>
@@ -103,8 +103,10 @@ const ActivitiesPage = () => {
                 <TableRow key={item.id}>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                   <TableCell>{item.entityType}</TableCell>
-                  <TableCell>{item.actionType}</TableCell>
-                  <TableCell>{item.actorName} ({item.actorPhone}) • {item.actorRoleName}</TableCell>
+                  <TableCell className="min-w-[220px]">{item.actionType}</TableCell>
+                  <TableCell className="whitespace-normal wrap-break-word">
+                    {item.actorName} ({item.actorPhone}) • {item.actorRoleName}
+                  </TableCell>
                 </TableRow>
               ))
             )}

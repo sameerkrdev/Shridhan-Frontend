@@ -575,9 +575,13 @@ export const CreateFdAccountDialog = ({
                   <div className="space-y-2">
                     <RequiredLabel>Relation</RequiredLabel>
                     <Select
-                      value={nomineeValues?.[index]?.relation ?? ""}
+                      value={nomineeValues?.[index]?.relation?.trim() || undefined}
                       onValueChange={(value) =>
-                        setValue(`nominees.${index}.relation`, value, { shouldValidate: true })
+                        setValue(`nominees.${index}.relation`, value, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                          shouldTouch: true,
+                        })
                       }
                     >
                       <SelectTrigger className="w-full">
@@ -591,6 +595,11 @@ export const CreateFdAccountDialog = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.nominees?.[index]?.relation ? (
+                      <p className="text-sm text-destructive">
+                        {errors.nominees[index]?.relation?.message}
+                      </p>
+                    ) : null}
                   </div>
                   {nomineeValues?.[index]?.relation === "OTHER" ? (
                     <div className="space-y-2">
@@ -872,7 +881,12 @@ export const CreateFdAccountDialog = ({
                   <span className="font-medium text-right">
                     {selectedProjectType?.maturityCalculationMethod === "MULTIPLE_OF_PRINCIPAL"
                       ? `${selectedProjectType.maturityMultiple}× principal`
-                      : `${selectedProjectType?.maturityAmountPerHundred ?? "N/A"} per Rs.100`}
+                      : selectedProjectType?.maturityCalculationMethod === "COMPOUNDING_INTEREST"
+                        ? `${selectedProjectType.maturityAmountPerHundred}% p.a. compound × ${selectedProjectType.duration} mo`
+                        : selectedProjectType?.maturityCalculationMethod === "SIMPLE_INTEREST" ||
+                            selectedProjectType?.maturityCalculationMethod === "INTEREST_MATURITY"
+                          ? `${selectedProjectType.maturityAmountPerHundred}% p.a. simple × ${selectedProjectType.duration} mo`
+                          : `${selectedProjectType?.maturityAmountPerHundred ?? "N/A"} per Rs.100`}
                   </span>
                 </div>
               </div>

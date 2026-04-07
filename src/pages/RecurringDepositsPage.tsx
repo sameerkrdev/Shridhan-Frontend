@@ -141,7 +141,7 @@ const RecurringDepositsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
           Recurring Deposits
         </h1>
         <p className="text-muted-foreground mt-2">Manage RD project types, monthly installments, fines, and payouts.</p>
@@ -270,7 +270,7 @@ const RecurringDepositsPage = () => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
 
@@ -420,8 +420,8 @@ const RecurringDepositsPage = () => {
       ) : null}
 
       {projectTypeToDelete ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg border bg-background p-6 max-w-md space-y-4 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2">
+          <div className="w-[calc(100vw-1rem)] max-w-md rounded-lg border bg-background p-4 sm:p-6 space-y-4 shadow-lg">
             <p>
               Delete project type <strong>{projectTypeToDelete.label}</strong>?
             </p>
@@ -438,8 +438,8 @@ const RecurringDepositsPage = () => {
       ) : null}
 
       {rdToDelete ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg border bg-background p-6 max-w-md space-y-4 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2">
+          <div className="w-[calc(100vw-1rem)] max-w-md rounded-lg border bg-background p-4 sm:p-6 space-y-4 shadow-lg">
             <p>
               Delete RD account for <strong>{rdToDelete.label}</strong>?
             </p>

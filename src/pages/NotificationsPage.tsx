@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -14,10 +15,16 @@ import {
   usePendingRdFineWaiveRequestsQuery,
   useRejectRdFineWaiveRequestMutation,
 } from "@/hooks/useRdApi";
+import {
+  useApproveFdEarlyPayoutRequestMutation,
+  usePendingFdEarlyPayoutRequestsQuery,
+  useRejectFdEarlyPayoutRequestMutation,
+} from "@/hooks/useFixedDepositApi";
 import { useAuthSessionStore } from "@/store/authSessionStore";
 import { hasPermission } from "@/components/Can";
-import { collection, doc, onSnapshot, orderBy, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, limit, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { firestoreDb, isFirebaseConfigured } from "@/lib/firebase";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
@@ -39,6 +46,12 @@ type RealtimeRow = {
   canAct: boolean;
   monthEntries?: Array<{ monthIndex: number; fine: string }>;
   reduceFromMaturity: boolean;
+  payoutAmount?: string;
+  recalculatePrincipalAndMaturity?: boolean;
+  requesterName?: string;
+  expiresAt?: string;
+  expiresAtDisplay?: string;
+  actedByName?: string | null;
   createdAt: string;
   updatedAt?: string;
   actedByMembershipId?: string | null;
@@ -46,22 +59,30 @@ type RealtimeRow = {
   readAt?: string | null;
 };
 
-/** Keyed by society+membership so initial loading resets on remount without setState in the subscription effect. */
 const RealtimeNotificationsTable = ({
   societyId,
   membershipId,
-  approveMutation,
-  rejectMutation,
+  approveRdMutation,
+  rejectRdMutation,
+  approveFdMutation,
+  rejectFdMutation,
+  canApproveFd,
+  canApproveRd,
 }: {
   societyId: string;
   membershipId: string;
-  approveMutation: ReturnType<typeof useApproveRdFineWaiveRequestMutation>;
-  rejectMutation: ReturnType<typeof useRejectRdFineWaiveRequestMutation>;
+  approveRdMutation: ReturnType<typeof useApproveRdFineWaiveRequestMutation>;
+  rejectRdMutation: ReturnType<typeof useRejectRdFineWaiveRequestMutation>;
+  approveFdMutation: ReturnType<typeof useApproveFdEarlyPayoutRequestMutation>;
+  rejectFdMutation: ReturnType<typeof useRejectFdEarlyPayoutRequestMutation>;
+  canApproveFd: boolean;
+  canApproveRd: boolean;
 }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [realtimeRequests, setRealtimeRequests] = useState<RealtimeRow[]>([]);
   const [realtimeLoading, setRealtimeLoading] = useState(true);
+  const [fdApproveRecalc, setFdApproveRecalc] = useState<Record<string, boolean>>({});
   const selectedDocId = searchParams.get("docId");
 
   useEffect(() => {
@@ -69,35 +90,43 @@ const RealtimeNotificationsTable = ({
     const q = query(
       collection(firestoreDb, `societies/${societyId}/notifications`),
       where("targetMembershipId", "==", membershipId),
-      orderBy("createdAt", "desc"),
+      limit(200),
     );
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setRealtimeRequests(
-          snap.docs.map((docSnap) => {
-            const d = docSnap.data() as {
-              requestId: string;
-              rdId: string;
-              rdCustomerName: string;
-              notificationType?: string;
-              module?: "rd" | "fd" | "mis";
-              accountId?: string;
-              accountLabel?: string;
-              routePath?: string;
-              status: string;
-              canAct: boolean;
-              monthEntries?: Array<{ monthIndex: number; fine: string }>;
-              reduceFromMaturity: boolean;
-              createdAt: string;
-              updatedAt?: string;
-              actedByMembershipId?: string | null;
-              isRead?: boolean;
-              readAt?: string | null;
-            };
-            return { ...d, docId: docSnap.id, isRead: d.isRead ?? Boolean(d.readAt) };
-          }),
+        const rows = snap.docs.map((docSnap) => {
+          const d = docSnap.data() as {
+            requestId: string;
+            rdId: string;
+            rdCustomerName: string;
+            notificationType?: string;
+            module?: "rd" | "fd" | "mis";
+            accountId?: string;
+            accountLabel?: string;
+            routePath?: string;
+            status: string;
+            canAct: boolean;
+            monthEntries?: Array<{ monthIndex: number; fine: string }>;
+            reduceFromMaturity: boolean;
+            payoutAmount?: string;
+            recalculatePrincipalAndMaturity?: boolean;
+            requesterName?: string;
+            expiresAt?: string;
+            expiresAtDisplay?: string;
+            actedByName?: string | null;
+            createdAt: string;
+            updatedAt?: string;
+            actedByMembershipId?: string | null;
+            isRead?: boolean;
+            readAt?: string | null;
+          };
+          return { ...d, docId: docSnap.id, isRead: d.isRead ?? Boolean(d.readAt) };
+        });
+        rows.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
+        setRealtimeRequests(rows);
         setRealtimeLoading(false);
       },
       () => setRealtimeLoading(false),
@@ -121,7 +150,11 @@ const RealtimeNotificationsTable = ({
     await Promise.all(unread.map((r) => markRealtimeAsRead(r.docId)));
   };
 
-  const getAccountRoute = (request: { accountId?: string; routePath?: string; module?: "rd" | "fd" | "mis" }): string | null => {
+  const getAccountRoute = (request: {
+    accountId?: string;
+    routePath?: string;
+    module?: "rd" | "fd" | "mis";
+  }): string | null => {
     if (!request.accountId) return null;
     if (request.routePath) return `${request.routePath}?accountId=${encodeURIComponent(request.accountId)}`;
     if (request.module === "fd") return `/fixed-deposits?accountId=${encodeURIComponent(request.accountId)}`;
@@ -131,7 +164,13 @@ const RealtimeNotificationsTable = ({
 
   const requests = useMemo(
     () =>
-      realtimeRequests.map((r) => ({
+      realtimeRequests
+        .filter((r) => {
+          if (r.notificationType === "FD_EARLY_PAYOUT_REQUEST" && !canApproveFd) return false;
+          if (r.notificationType === "RD_FINE_WAIVE_REQUEST" && !canApproveRd) return false;
+          return true;
+        })
+        .map((r) => ({
         id: r.requestId,
         docId: r.docId,
         createdAt: r.createdAt,
@@ -149,14 +188,27 @@ const RealtimeNotificationsTable = ({
         routePath: r.routePath,
         accountId: r.accountId ?? r.rdId,
         reduceFromMaturity: r.reduceFromMaturity,
+        payoutAmount: r.payoutAmount,
+        recalculatePrincipalAndMaturity:
+          r.recalculatePrincipalAndMaturity ?? r.reduceFromMaturity,
+        requesterName: r.requesterName,
+        expiresAt: r.expiresAt,
+        expiresAtDisplay: r.expiresAtDisplay,
+        actedByName: r.actedByName ?? null,
         status: r.status,
         canAct: r.canAct,
         actedByMembershipId: r.actedByMembershipId ?? null,
         isRead: Boolean(r.isRead),
       })),
-    [realtimeRequests],
+    [realtimeRequests, canApproveFd, canApproveRd],
   );
   const unreadCount = requests.filter((r) => !r.isRead).length;
+
+  const actionPending =
+    approveRdMutation.isPending ||
+    rejectRdMutation.isPending ||
+    approveFdMutation.isPending ||
+    rejectFdMutation.isPending;
 
   return (
     <>
@@ -180,7 +232,7 @@ const RealtimeNotificationsTable = ({
               <TableHead>Created</TableHead>
               <TableHead>Notification</TableHead>
               <TableHead>Account</TableHead>
-              <TableHead>Months</TableHead>
+              <TableHead>Detail</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -192,7 +244,7 @@ const RealtimeNotificationsTable = ({
               </TableRow>
             ) : requests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>No pending waive requests.</TableCell>
+                <TableCell colSpan={6}>No notifications.</TableCell>
               </TableRow>
             ) : (
               requests.map((request) => (
@@ -203,7 +255,7 @@ const RealtimeNotificationsTable = ({
                     void markRealtimeAsRead(request.docId);
                   }}
                 >
-                  <TableCell>{new Date(request.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>{formatDateTime(request.createdAt)}</TableCell>
                   <TableCell>
                     <div className="text-xs text-muted-foreground">{request.notificationType}</div>
                     <div className="flex items-center gap-2">
@@ -215,20 +267,82 @@ const RealtimeNotificationsTable = ({
                   </TableCell>
                   <TableCell>{request.recurringDeposit.id}</TableCell>
                   <TableCell>
-                    {request.months
-                      .map((m) => `M${m.monthIndex} (${formatCurrency(m.waivedFineAmount)})`)
-                      .join(", ")}
+                    {request.notificationType === "FD_EARLY_PAYOUT_REQUEST" ? (
+                      <div className="space-y-2 text-sm">
+                        <p>
+                          Payout:{" "}
+                          <span className="font-medium">
+                            {formatCurrency(request.payoutAmount ?? "0")}
+                          </span>
+                        </p>
+                        {request.requesterName ? (
+                          <p className="text-xs text-muted-foreground">
+                            Requested by: <span className="text-foreground">{request.requesterName}</span>
+                          </p>
+                        ) : null}
+                        {(request.expiresAtDisplay || request.expiresAt) && (
+                          <p className="text-xs text-muted-foreground">
+                            Approval deadline:{" "}
+                            <span className="text-foreground">
+                              {request.expiresAtDisplay?.trim() ||
+                                formatDateTime(request.expiresAt)}
+                            </span>
+                          </p>
+                        )}
+                        {request.status !== "PENDING" && request.actedByName ? (
+                          <p className="text-xs text-muted-foreground">
+                            Reviewed by:{" "}
+                            <span className="text-foreground">{request.actedByName}</span>
+                          </p>
+                        ) : null}
+                        {request.canAct ? (
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`fd-recalc-${request.id}`}
+                              checked={
+                                fdApproveRecalc[request.id] ??
+                                Boolean(request.recalculatePrincipalAndMaturity)
+                              }
+                              onCheckedChange={(c) =>
+                                setFdApproveRecalc((prev) => ({
+                                  ...prev,
+                                  [request.id]: c === true,
+                                }))
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <label
+                              htmlFor={`fd-recalc-${request.id}`}
+                              className="text-xs cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Recalculate principal & maturity on approve
+                            </label>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Recalculate: {request.recalculatePrincipalAndMaturity ? "Yes" : "No"}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm">
+                        {request.months
+                          .map((m) => `M${m.monthIndex} (${formatCurrency(m.waivedFineAmount)})`)
+                          .join(", ") || "—"}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>{request.status}</TableCell>
                   <TableCell className="space-x-2">
-                    {request.notificationType === "RD_FINE_WAIVE_REQUEST" && request.canAct ? (
+                    {request.notificationType === "RD_FINE_WAIVE_REQUEST" && canApproveRd && request.canAct ? (
                       <>
                         <Button
                           size="sm"
-                          disabled={approveMutation.isPending || rejectMutation.isPending}
+                          disabled={actionPending}
                           onClick={() => {
                             void markRealtimeAsRead(request.docId);
-                            approveMutation.mutate(request.id);
+                            approveRdMutation.mutate(request.id);
                           }}
                         >
                           Accept
@@ -236,10 +350,43 @@ const RealtimeNotificationsTable = ({
                         <Button
                           size="sm"
                           variant="destructive"
-                          disabled={approveMutation.isPending || rejectMutation.isPending}
+                          disabled={actionPending}
                           onClick={() => {
                             void markRealtimeAsRead(request.docId);
-                            rejectMutation.mutate({
+                            rejectRdMutation.mutate({
+                              requestId: request.id,
+                              rejectionReason: "Rejected",
+                            });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
+                    {request.notificationType === "FD_EARLY_PAYOUT_REQUEST" && canApproveFd && request.canAct ? (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={actionPending}
+                          onClick={() => {
+                            void markRealtimeAsRead(request.docId);
+                            approveFdMutation.mutate({
+                              requestId: request.id,
+                              recalculatePrincipalAndMaturity:
+                                fdApproveRecalc[request.id] ??
+                                Boolean(request.recalculatePrincipalAndMaturity),
+                            });
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={actionPending}
+                          onClick={() => {
+                            void markRealtimeAsRead(request.docId);
+                            rejectFdMutation.mutate({
                               requestId: request.id,
                               rejectionReason: "Rejected",
                             });
@@ -279,31 +426,40 @@ const NotificationsPage = () => {
   const societyId = selectedMembership?.societyId ?? null;
   const membershipId = selectedMembership?.membershipId ?? null;
   const permissions = selectedMembership?.permissions ?? [];
-  const canApprove = hasPermission(permissions, "recurring_deposit.approve_fine_waive");
+  const canApproveRd = hasPermission(permissions, "recurring_deposit.approve_fine_waive");
+  const canApproveFd = hasPermission(permissions, "fixed_deposit.approve_early_payout");
+  const canReview = canApproveRd || canApproveFd;
   const useRealtime =
-    canApprove && Boolean(societyId && membershipId && firestoreDb && isFirebaseConfigured);
-  const { data: fallbackRequests = [], isLoading: isFallbackLoading } =
-    usePendingRdFineWaiveRequestsQuery(societyId, canApprove && !useRealtime);
-  const approveMutation = useApproveRdFineWaiveRequestMutation(societyId ?? "");
-  const rejectMutation = useRejectRdFineWaiveRequestMutation(societyId ?? "");
+    canReview && Boolean(societyId && membershipId && firestoreDb && isFirebaseConfigured);
+  const { data: fallbackRd = [], isLoading: isFallbackRdLoading } = usePendingRdFineWaiveRequestsQuery(
+    societyId,
+    canApproveRd && !useRealtime,
+  );
+  const { data: fallbackFd = [], isLoading: isFallbackFdLoading } = usePendingFdEarlyPayoutRequestsQuery(
+    societyId,
+    canApproveFd && !useRealtime,
+  );
+  const approveRdMutation = useApproveRdFineWaiveRequestMutation(societyId ?? "");
+  const rejectRdMutation = useRejectRdFineWaiveRequestMutation(societyId ?? "");
+  const approveFdMutation = useApproveFdEarlyPayoutRequestMutation(societyId ?? "");
+  const rejectFdMutation = useRejectFdEarlyPayoutRequestMutation(societyId ?? "");
+  const [fdFallbackRecalc, setFdFallbackRecalc] = useState<Record<string, boolean>>({});
 
-  const fallbackRequestsWithMeta = useMemo(
+  const fallbackRdWithMeta = useMemo(
     () =>
-      fallbackRequests.map((r) => ({
+      fallbackRd.map((r) => ({
         ...r,
         canAct: r.status === "PENDING",
         actedByMembershipId: null,
         isRead: false,
       })),
-    [fallbackRequests],
+    [fallbackRd],
   );
-  const isLoading = !useRealtime && isFallbackLoading;
-  const unreadCount = fallbackRequestsWithMeta.filter((r) => !r.isRead).length;
 
-  if (!canApprove) {
+  if (!canReview) {
     return (
       <p className="text-sm text-muted-foreground">
-        You do not have permission to review waive requests.
+        You do not have permission to review notifications.
       </p>
     );
   }
@@ -314,8 +470,8 @@ const NotificationsPage = () => {
         <h1 className="text-3xl font-bold">Notifications</h1>
         <p className="text-muted-foreground">
           {useRealtime
-            ? "Realtime RD fine waive-off notifications (Firestore)."
-            : "Pending RD fine waive-off approvals."}
+            ? "Realtime approval notifications (RD fine waive, FD early payout)."
+            : "Pending approvals (API fallback when Firestore is unavailable)."}
         </p>
       </div>
       {useRealtime && societyId && membershipId && firestoreDb ? (
@@ -323,75 +479,189 @@ const NotificationsPage = () => {
           key={`${societyId}-${membershipId}`}
           societyId={societyId}
           membershipId={membershipId}
-          approveMutation={approveMutation}
-          rejectMutation={rejectMutation}
+          approveRdMutation={approveRdMutation}
+          rejectRdMutation={rejectRdMutation}
+          approveFdMutation={approveFdMutation}
+          rejectFdMutation={rejectFdMutation}
+          canApproveFd={canApproveFd}
+          canApproveRd={canApproveRd}
         />
       ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Unread: <span className="font-medium text-foreground">{unreadCount}</span>
-            </p>
-          </div>
-          <div className="rounded-md border overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>Created</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>RD ID</TableHead>
-                  <TableHead>Months</TableHead>
-                  <TableHead>Reduce from maturity</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>Loading...</TableCell>
-                  </TableRow>
-                ) : fallbackRequestsWithMeta.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>No pending waive requests.</TableCell>
-                  </TableRow>
-                ) : (
-                  fallbackRequestsWithMeta.map((request) => (
-                    <TableRow key={request.id} className={request.isRead ? "" : "bg-muted/20"}>
-                      <TableCell>{new Date(request.createdAt).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {!request.isRead ? (
-                            <span className="h-2 w-2 rounded-full bg-blue-500" />
-                          ) : null}
-                          <span>{request.recurringDeposit.customer.fullName}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {request.recurringDeposit.customer.phone}
-                        </div>
-                      </TableCell>
-                      <TableCell>{request.recurringDeposit.id}</TableCell>
-                      <TableCell>
-                        {request.months
-                          .map((m) => `M${m.monthIndex} (${formatCurrency(m.waivedFineAmount)})`)
-                          .join(", ")}
-                      </TableCell>
-                      <TableCell>{request.reduceFromMaturity ? "Yes" : "No"}</TableCell>
-                      <TableCell className="space-x-2">
-                        {request.canAct ? (
-                          <>
+        <div className="space-y-8">
+          {canApproveRd ? (
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold">RD fine waive (pending)</h2>
+              <div className="rounded-md border overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead>Created</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>RD ID</TableHead>
+                      <TableHead>Months</TableHead>
+                      <TableHead>Reduce from maturity</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isFallbackRdLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6}>Loading...</TableCell>
+                      </TableRow>
+                    ) : fallbackRdWithMeta.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6}>No pending RD waive requests.</TableCell>
+                      </TableRow>
+                    ) : (
+                      fallbackRdWithMeta.map((request) => (
+                        <TableRow key={request.id} className={request.isRead ? "" : "bg-muted/20"}>
+                          <TableCell>{formatDateTime(request.createdAt)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {!request.isRead ? (
+                                <span className="h-2 w-2 rounded-full bg-blue-500" />
+                              ) : null}
+                              <span>{request.recurringDeposit.customer.fullName}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {request.recurringDeposit.customer.phone}
+                            </div>
+                          </TableCell>
+                          <TableCell>{request.recurringDeposit.id}</TableCell>
+                          <TableCell>
+                            {request.months
+                              .map((m) => `M${m.monthIndex} (${formatCurrency(m.waivedFineAmount)})`)
+                              .join(", ")}
+                          </TableCell>
+                          <TableCell>{request.reduceFromMaturity ? "Yes" : "No"}</TableCell>
+                          <TableCell className="space-x-2">
+                            {request.canAct ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  disabled={approveRdMutation.isPending || rejectRdMutation.isPending}
+                                  onClick={() => approveRdMutation.mutate(request.id)}
+                                >
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={approveRdMutation.isPending || rejectRdMutation.isPending}
+                                  onClick={() =>
+                                    rejectRdMutation.mutate({
+                                      requestId: request.id,
+                                      rejectionReason: "Rejected",
+                                    })
+                                  }
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{request.status}</span>
+                            )}
                             <Button
                               size="sm"
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
-                              onClick={() => approveMutation.mutate(request.id)}
+                              variant="outline"
+                              onClick={() =>
+                                navigate(
+                                  `/recurring-deposits?accountId=${encodeURIComponent(request.recurringDeposit.id)}`,
+                                )
+                              }
+                            >
+                              Go to account
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          ) : null}
+
+          {canApproveFd ? (
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold">FD early payout (pending)</h2>
+              <div className="rounded-md border overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead>Created</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>FD ID</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Recalculate</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isFallbackFdLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6}>Loading...</TableCell>
+                      </TableRow>
+                    ) : fallbackFd.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6}>No pending FD early payout requests.</TableCell>
+                      </TableRow>
+                    ) : (
+                      fallbackFd.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>{formatDateTime(request.createdAt)}</TableCell>
+                          <TableCell>
+                            <span>{request.fixDeposit.customer.fullName}</span>
+                            <div className="text-xs text-muted-foreground">
+                              {request.fixDeposit.customer.phone}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Requested by: {request.requestedByDisplayName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Approval deadline: {request.expiresAtDisplay}
+                            </div>
+                          </TableCell>
+                          <TableCell>{request.fixDeposit.id}</TableCell>
+                          <TableCell>{formatCurrency(request.amount)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`fd-fb-${request.id}`}
+                                checked={
+                                  fdFallbackRecalc[request.id] ??
+                                  request.recalculatePrincipalAndMaturity
+                                }
+                                onCheckedChange={(c) =>
+                                  setFdFallbackRecalc((p) => ({ ...p, [request.id]: c === true }))
+                                }
+                              />
+                              <label htmlFor={`fd-fb-${request.id}`} className="text-xs">
+                                On approve
+                              </label>
+                            </div>
+                          </TableCell>
+                          <TableCell className="space-x-2">
+                            <Button
+                              size="sm"
+                              disabled={approveFdMutation.isPending || rejectFdMutation.isPending}
+                              onClick={() =>
+                                approveFdMutation.mutate({
+                                  requestId: request.id,
+                                  recalculatePrincipalAndMaturity:
+                                    fdFallbackRecalc[request.id] ??
+                                    request.recalculatePrincipalAndMaturity,
+                                })
+                              }
                             >
                               Accept
                             </Button>
                             <Button
                               size="sm"
                               variant="destructive"
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
+                              disabled={approveFdMutation.isPending || rejectFdMutation.isPending}
                               onClick={() =>
-                                rejectMutation.mutate({
+                                rejectFdMutation.mutate({
                                   requestId: request.id,
                                   rejectionReason: "Rejected",
                                 })
@@ -399,31 +669,27 @@ const NotificationsPage = () => {
                             >
                               Reject
                             </Button>
-                          </>
-                        ) : request.status === "APPROVED" && request.actedByMembershipId ? (
-                          <span className="text-xs text-muted-foreground">
-                            Accepted by member {request.actedByMembershipId}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">{request.status}</span>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            navigate(`/recurring-deposits?accountId=${encodeURIComponent(request.recurringDeposit.id)}`)
-                          }
-                        >
-                          Go to account
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                navigate(
+                                  `/fixed-deposits?accountId=${encodeURIComponent(request.fixDeposit.id)}`,
+                                )
+                              }
+                            >
+                              Go to account
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );

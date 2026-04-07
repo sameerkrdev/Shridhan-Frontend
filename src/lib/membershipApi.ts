@@ -88,10 +88,6 @@ export interface UserMembershipProfile {
   canLeave?: boolean;
 }
 
-const societyHeader = (societyId: string) => ({
-  headers: { "x-society-id": societyId },
-});
-
 export const searchUser = async (query: string) => {
   const { data } = await apiClient.post<SearchUserResult>(
     "/memberships/search-user",
@@ -101,74 +97,114 @@ export const searchUser = async (query: string) => {
 };
 
 export const addMember = async (
-  societyId: string,
+  _societyId: string,
   payload: {
     userId?: string;
     emailOrPhone?: string;
     name?: string;
-    email: string;
+    email?: string;
     phone?: string;
+    phoneOtp?: string;
+    emailOtp?: string;
     roleId: string;
   },
 ) => {
   const { data } = await apiClient.post<MembershipWithUser>(
     "/memberships",
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const listMembers = async (societyId: string, includeDeleted = false) => {
+export const updateMemberContact = async (
+  _societyId: string,
+  membershipId: string,
+  payload: {
+    phone?: string;
+    email?: string;
+    phoneOtp?: string;
+    emailOtp?: string;
+  },
+) => {
+  const { data } = await apiClient.patch<MembershipWithUser>(`/memberships/${membershipId}/contact`, payload);
+  return data;
+};
+
+export const sendMemberPhoneOtp = async (phone: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/phone/send", {
+    phone,
+    reason: "verify-phone",
+  });
+  return data;
+};
+
+export const verifyMemberPhoneOtp = async (phone: string, otp: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/phone/verify", {
+    phone,
+    otp,
+    reason: "verify-phone",
+  });
+  return data;
+};
+
+export const sendMemberEmailOtp = async (email: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/email/send", {
+    email,
+    reason: "verify-email",
+  });
+  return data;
+};
+
+export const verifyMemberEmailOtp = async (email: string, otp: string) => {
+  const { data } = await apiClient.post<{ message: string }>("/otp/email/verify", {
+    email,
+    otp,
+    reason: "verify-email",
+  });
+  return data;
+};
+
+export const listMembers = async (_societyId: string, includeDeleted = false) => {
   const { data } = await apiClient.get<{ members: MembershipWithUser[] }>(
     "/memberships",
     {
-      ...societyHeader(societyId),
       params: { includeDeleted: includeDeleted ? "true" : "false" },
     },
   );
   return data.members;
 };
 
-export const getMemberDetail = async (societyId: string, membershipId: string) => {
-  const { data } = await apiClient.get<MembershipWithUser>(
-    `/memberships/${membershipId}`,
-    societyHeader(societyId),
-  );
+export const getMemberDetail = async (_societyId: string, membershipId: string) => {
+  const { data } = await apiClient.get<MembershipWithUser>(`/memberships/${membershipId}`);
   return data;
 };
 
 export const updateMemberRole = async (
-  societyId: string,
+  _societyId: string,
   membershipId: string,
   roleId: string,
 ) => {
   const { data } = await apiClient.patch<MembershipWithUser>(
     `/memberships/${membershipId}/role`,
     { roleId },
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const updateMemberStatus = async (
-  societyId: string,
+  _societyId: string,
   membershipId: string,
   status: MembershipStatus,
 ) => {
   const { data } = await apiClient.patch<MembershipWithUser>(
     `/memberships/${membershipId}/status`,
     { status },
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const removeMember = async (societyId: string, membershipId: string) => {
-  const { data } = await apiClient.delete<{ success: boolean }>(
-    `/memberships/${membershipId}`,
-    societyHeader(societyId),
-  );
+export const removeMember = async (_societyId: string, membershipId: string) => {
+  const { data } = await apiClient.delete<{ success: boolean }>(`/memberships/${membershipId}`);
   return data;
 };
 
@@ -191,56 +227,55 @@ export const getMyMemberships = async () => {
   return data.memberships;
 };
 
-export const leaveCurrentSociety = async (societyId: string) => {
-  const { data } = await apiClient.delete<{ success: boolean }>("/memberships/me", societyHeader(societyId));
+export const leaveCurrentSociety = async (_societyId: string) => {
+  void _societyId;
+  const { data } = await apiClient.delete<{ success: boolean }>("/memberships/me");
   return data;
 };
 
-export const listCustomRoles = async (societyId: string) => {
+export const listCustomRoles = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.get<{ roles: SocietyCustomRole[] }>(
     "/memberships/custom-roles",
-    societyHeader(societyId),
   );
   return data.roles;
 };
 
 export const createCustomRole = async (
-  societyId: string,
+  _societyId: string,
   payload: { name: string; permissions: string[] },
 ) => {
   const { data } = await apiClient.post<SocietyCustomRole>(
     "/memberships/custom-roles",
     payload,
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const getRolePermissionMatrix = async (societyId: string) => {
+export const getRolePermissionMatrix = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.get<RolePermissionMatrix>(
     "/memberships/custom-roles/matrix",
-    societyHeader(societyId),
   );
   return data;
 };
 
 export const updateMatrixRolePermissions = async (
-  societyId: string,
+  _societyId: string,
   roleKey: string,
   permissions: string[],
 ) => {
   const { data } = await apiClient.patch<{ key: string; permissions: string[] }>(
     `/memberships/custom-roles/matrix/${encodeURIComponent(roleKey)}/permissions`,
     { permissions },
-    societyHeader(societyId),
   );
   return data;
 };
 
-export const getAssignableRoleOptions = async (societyId: string) => {
+export const getAssignableRoleOptions = async (_societyId: string) => {
+  void _societyId;
   const { data } = await apiClient.get<AssignableRoleOptionsResponse>(
     "/memberships/role-options",
-    societyHeader(societyId),
   );
   return data;
 };

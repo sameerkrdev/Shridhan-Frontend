@@ -52,7 +52,12 @@ const schema = z
       .number({ message: "Minimum amount is required" })
       .min(1, "Minimum amount must be greater than 0")
       .max(100000000),
-    maturityCalculationMethod: z.enum(["PER_RS_100", "MULTIPLE_OF_PRINCIPAL"]),
+    maturityCalculationMethod: z.enum([
+      "PER_RS_100",
+      "MULTIPLE_OF_PRINCIPAL",
+      "SIMPLE_INTEREST",
+      "COMPOUNDING_INTEREST",
+    ]),
     maturityValue: z
       .number({ message: "Maturity value is required" })
       .refine((v) => !Number.isNaN(v), "Enter a valid number"),
@@ -64,6 +69,17 @@ const schema = z
           code: "custom",
           path: ["maturityValue"],
           message: "Return per Rs.100 must be between 1 and 100000",
+        });
+      }
+    } else if (
+      data.maturityCalculationMethod === "SIMPLE_INTEREST" ||
+      data.maturityCalculationMethod === "COMPOUNDING_INTEREST"
+    ) {
+      if (data.maturityValue < 0.01 || data.maturityValue > 100) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["maturityValue"],
+          message: "Annual interest rate must be between 0.01 and 100",
         });
       }
     } else if (data.maturityValue < 0.1 || data.maturityValue > 100) {
@@ -137,6 +153,7 @@ export const CreateProjectTypeDialog = ({
       maturityCalculationMethod: maturityCalculationMethodSafe,
       maturityAmountPerHundred: String(maturityValue),
       maturityMultiple: String(maturityValue),
+      duration,
     };
 
     const rows = unique.map((deposit) => ({
@@ -172,11 +189,17 @@ export const CreateProjectTypeDialog = ({
   const valueLabel =
     maturityCalculationMethodSafe === "PER_RS_100"
       ? "Return per Rs.100"
-      : "Maturity multiple (× principal)";
+      : maturityCalculationMethodSafe === "SIMPLE_INTEREST" ||
+          maturityCalculationMethodSafe === "COMPOUNDING_INTEREST"
+        ? "Annual interest rate (% p.a.)"
+        : "Maturity multiple (× principal)";
   const valuePlaceholder =
     maturityCalculationMethodSafe === "PER_RS_100"
       ? "Enter return per Rs.100"
-      : "Enter maturity multiple";
+      : maturityCalculationMethodSafe === "SIMPLE_INTEREST" ||
+          maturityCalculationMethodSafe === "COMPOUNDING_INTEREST"
+        ? "e.g. 7.5 for 7.5% per year"
+        : "Enter maturity multiple";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -238,6 +261,12 @@ export const CreateProjectTypeDialog = ({
                   <SelectItem value="PER_RS_100">Return per Rs.100</SelectItem>
                   <SelectItem value="MULTIPLE_OF_PRINCIPAL">
                     Maturity multiple (× principal)
+                  </SelectItem>
+                  <SelectItem value="SIMPLE_INTEREST">
+                    Simple interest at maturity (principal + P×r×t)
+                  </SelectItem>
+                  <SelectItem value="COMPOUNDING_INTEREST">
+                    Compounding interest (principal × (1+r)^t, t = years)
                   </SelectItem>
                 </SelectContent>
               </Select>

@@ -1,15 +1,30 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useFdDetailQuery } from "@/hooks/useFixedDepositApi";
-import { useProjectTypesQuery } from "@/hooks/useFixedDepositApi";
-import { formatDate } from "@/lib/dateFormat";
+import {
+  useFdDetailQuery,
+  useFdEarlyPayoutRequestsQuery,
+  useProjectTypesQuery,
+} from "@/hooks/useFixedDepositApi";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { AddTransactionDialog } from "@/dialogs/AddTransactionDialog";
 import { CreateFdAccountDialog } from "@/dialogs/CreateFdAccountDialog";
 import { ActivityHistory } from "@/components/ActivityHistory";
-
 interface FdDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,6 +55,11 @@ export const FdDetailDialog = ({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const { data, isLoading } = useFdDetailQuery(societyId, fixedDepositId, open);
   const { data: projectTypes = [] } = useProjectTypesQuery(societyId);
+  const { data: earlyPayoutRequests = [] } = useFdEarlyPayoutRequestsQuery(
+    societyId,
+    fixedDepositId,
+    open && Boolean(fixedDepositId),
+  );
 
   const totalCredit = (data?.transactions ?? [])
     .filter((transaction) => transaction.type === "CREDIT")
@@ -55,7 +75,7 @@ export const FdDetailDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[1040px]">
+        <DialogContent className="max-h-[92vh] overflow-y-auto overflow-x-hidden sm:max-w-[1040px]">
           <DialogHeader>
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -75,19 +95,34 @@ export const FdDetailDialog = ({
           ) : !data ? (
             <p className="text-sm text-muted-foreground">No data found.</p>
           ) : (
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <div className="rounded-xl border bg-muted/20 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">FD Account</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      FD Account
+                    </p>
                     <p className="font-semibold">{data.id}</p>
                   </div>
-                  <Badge variant={data.status === "ACTIVE" ? "default" : "secondary"}>{data.status}</Badge>
+                  <Badge variant={data.status === "ACTIVE" ? "default" : "secondary"}>
+                    {data.status}
+                  </Badge>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
                   <InfoItem label="Project Type" value={data.projectType.name} />
-                  <InfoItem label="Deposit Amount" value={formatCurrency(data.principalAmount)} />
-                  <InfoItem label="Maturity Amount" value={formatCurrency(data.maturityAmount)} />
+                  <InfoItem
+                    label="Original principal"
+                    value={formatCurrency(data.originalPrincipalAmount ?? data.principalAmount)}
+                  />
+                  <InfoItem
+                    label="Current principal"
+                    value={formatCurrency(data.principalAmount)}
+                  />
+                  <InfoItem
+                    label="Original maturity"
+                    value={formatCurrency(data.originalMaturityAmount ?? data.maturityAmount)}
+                  />
+                  <InfoItem label="Current maturity" value={formatCurrency(data.maturityAmount)} />
                   <InfoItem label="Maturity Date" value={formatDate(data.maturityDate)} />
                 </div>
               </div>
@@ -148,7 +183,10 @@ export const FdDetailDialog = ({
                 {data.documents?.length ? (
                   <div className="space-y-2">
                     {data.documents.map((document) => (
-                      <div key={document.id} className="rounded-md border p-3 flex items-center justify-between gap-3">
+                      <div
+                        key={document.id}
+                        className="rounded-md border p-3 flex items-center justify-between gap-3"
+                      >
                         <div>
                           <p className="font-medium">{document.displayName}</p>
                           <p className="text-xs text-muted-foreground">{document.fileName}</p>
@@ -170,22 +208,60 @@ export const FdDetailDialog = ({
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-semibold">Transactions</h3>
-                  <Button type="button" onClick={() => setIsAddTransactionOpen(true)}>
-                    Add Transaction
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" onClick={() => setIsAddTransactionOpen(true)}>
+                      Add transaction
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="rounded-md border overflow-auto">
-                  <Table>
+                {earlyPayoutRequests.length > 0 ? (
+                  <div className="w-full max-w-full overflow-x-auto rounded-md border">
+                    <p className="px-3 py-2 text-sm font-medium border-b bg-muted/30">
+                      Early payout requests
+                    </p>
+                    <Table className="min-w-[480px]">
+                      <TableHeader>
+                        <TableRow className="bg-muted/40">
+                          <TableHead>Created</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Recalc</TableHead>
+                          <TableHead>Approval deadline</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {earlyPayoutRequests.map((r) => (
+                          <TableRow key={r.id}>
+                            <TableCell className="text-xs">
+                              {formatDateTime(r.createdAt)}
+                            </TableCell>
+                            <TableCell>{formatCurrency(r.amount)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{r.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {r.recalculatePrincipalAndMaturity ? "Yes" : "No"}
+                            </TableCell>
+                            <TableCell className="text-xs">{formatDate(r.expiresAt)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : null}
+
+                <div className="w-full max-w-full overflow-x-auto rounded-md border">
+                  <Table className="min-w-[520px]">
                     <TableHeader>
                       <TableRow className="bg-muted/40">
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Method</TableHead>
-                        <TableHead>Transaction ID</TableHead>
+                        <TableHead className="min-w-[120px]">Transaction ID</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -200,15 +276,21 @@ export const FdDetailDialog = ({
                           <TableRow key={transaction.id}>
                             <TableCell>{formatDate(transaction.createdAt)}</TableCell>
                             <TableCell>
-                              <Badge variant={transaction.type === "CREDIT" ? "default" : "secondary"}>
+                              <Badge
+                                variant={transaction.type === "CREDIT" ? "default" : "secondary"}
+                              >
                                 {transaction.type}
                               </Badge>
                             </TableCell>
-                            <TableCell className="font-medium">{formatCurrency(transaction.amount)}</TableCell>
+                            <TableCell className="font-medium">
+                              {formatCurrency(transaction.amount)}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline">{transaction.paymentMethod ?? "N/A"}</Badge>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{transaction.transactionId ?? "N/A"}</TableCell>
+                            <TableCell className="max-w-[200px] break-all text-muted-foreground">
+                              {transaction.transactionId ?? "N/A"}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -217,11 +299,7 @@ export const FdDetailDialog = ({
                 </div>
               </div>
 
-              <ActivityHistory
-                societyId={societyId}
-                entityType="FD_ACCOUNT"
-                entityId={data.id}
-              />
+              <ActivityHistory societyId={societyId} entityType="FD_ACCOUNT" entityId={data.id} />
             </div>
           )}
         </DialogContent>

@@ -25,7 +25,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
         <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
 
         {/* ----------------- Dynamic Breadcrumb ------------------ */}
-        <Breadcrumb>
+        <Breadcrumb className="hidden sm:block">
           <BreadcrumbList>
             {/* Home link */}
             <BreadcrumbItem>

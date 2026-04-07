@@ -16,7 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { IconLoader2 } from "@tabler/icons-react";
-import { useUpdateStatusMutation } from "@/hooks/useMembershipApi";
+import {
+  useUpdateStatusMutation,
+  useUpdateMemberContactMutation,
+  useSendMemberPhoneOtpMutation,
+  useVerifyMemberPhoneOtpMutation,
+  useSendMemberEmailOtpMutation,
+  useVerifyMemberEmailOtpMutation,
+} from "@/hooks/useMembershipApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/apiError";
 import type { MembershipStatus } from "@/types/auth";
@@ -36,18 +43,66 @@ export const EditMemberDialog = ({
   member,
   societyId,
 }: EditMemberDialogProps) => {
-  const [selectedStatus, setSelectedStatus] = useState<MembershipStatus | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<MembershipStatus | null>(member?.status ?? null);
+  const [phone, setPhone] = useState(member?.user.phone ?? "");
+  const [email, setEmail] = useState(member?.user.email ?? "");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   const updateStatusMutation = useUpdateStatusMutation(societyId);
+  const updateContactMutation = useUpdateMemberContactMutation(societyId);
+  const sendPhoneOtpMutation = useSendMemberPhoneOtpMutation();
+  const verifyPhoneOtpMutation = useVerifyMemberPhoneOtpMutation();
+  const sendEmailOtpMutation = useSendMemberEmailOtpMutation();
+  const verifyEmailOtpMutation = useVerifyMemberEmailOtpMutation();
 
   if (!member) return null;
 
   const currentRole = member.role.name;
   const currentStatus = selectedStatus ?? member.status;
   const canModify = true;
+  const phoneChanged = phone.trim() !== member.user.phone;
+  const emailChanged = email.trim() !== (member.user.email ?? "");
 
   const handleSave = async () => {
     try {
+      if (phoneChanged) {
+        if (!phoneVerified) {
+          toast.error("Verify new phone with OTP before saving");
+          return;
+        }
+        if (phoneOtp.trim().length !== 6) {
+          toast.error("Enter 6-digit phone OTP");
+          return;
+        }
+      }
+      if (emailChanged && email.trim()) {
+        if (!emailVerified) {
+          toast.error("Verify new email with OTP before saving");
+          return;
+        }
+        if (emailOtp.trim().length !== 6) {
+          toast.error("Enter 6-digit email OTP");
+          return;
+        }
+      }
+      if (emailChanged && !email.trim()) {
+        toast.error("Email cannot be empty");
+        return;
+      }
+      if (phoneChanged || emailChanged) {
+        await updateContactMutation.mutateAsync({
+          membershipId: member.id,
+          payload: {
+            phone: phone.trim(),
+            email: email.trim(),
+            phoneOtp: phoneChanged ? phoneOtp.trim() : undefined,
+            emailOtp: emailChanged && email.trim() ? emailOtp.trim() : undefined,
+          },
+        });
+      }
       if (selectedStatus && selectedStatus !== member.status) {
         await updateStatusMutation.mutateAsync({
           membershipId: member.id,
@@ -63,9 +118,9 @@ export const EditMemberDialog = ({
   };
 
   const hasChanges =
-    selectedStatus && selectedStatus !== member.status;
+    (selectedStatus && selectedStatus !== member.status) || phoneChanged || emailChanged;
 
-  const isSaving = updateStatusMutation.isPending;
+  const isSaving = updateStatusMutation.isPending || updateContactMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,11 +139,125 @@ export const EditMemberDialog = ({
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
-            <Input value={member.user.email ?? "—"} disabled className="bg-muted" />
+            <Input
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setEmailOtp("");
+                setEmailVerified(false);
+              }}
+              placeholder="Email (optional)"
+            />
           </div>
           <div className="space-y-2">
             <Label>Phone</Label>
-            <Input value={member.user.phone} disabled className="bg-muted" />
+            <Input
+              value={phone}
+              onChange={(event) => {
+                setPhone(event.target.value);
+                setPhoneOtp("");
+                setPhoneVerified(false);
+              }}
+              placeholder="Phone number"
+            />
+          </div>
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Phone OTP Verification</Label>
+              {!phoneChanged ? (
+                <span className="text-xs text-muted-foreground">No phone change</span>
+              ) : phoneVerified ? (
+                <span className="text-xs text-emerald-600">Verified</span>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={phoneOtp}
+                onChange={(event) => setPhoneOtp(event.target.value)}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+                disabled={!phoneChanged || phoneVerified}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!phoneChanged || sendPhoneOtpMutation.isPending || !phone.trim()}
+                onClick={async () => {
+                  try {
+                    await sendPhoneOtpMutation.mutateAsync(phone.trim());
+                    toast.success("Phone OTP sent");
+                  } catch (error) {
+                    toast.error(getApiErrorMessage(error, "Failed to send phone OTP"));
+                  }
+                }}
+              >
+                Send OTP
+              </Button>
+              <Button
+                type="button"
+                disabled={!phoneChanged || phoneVerified || phoneOtp.length !== 6}
+                onClick={async () => {
+                  try {
+                    await verifyPhoneOtpMutation.mutateAsync({ phone: phone.trim(), otp: phoneOtp.trim() });
+                    setPhoneVerified(true);
+                    toast.success("Phone verified");
+                  } catch (error) {
+                    toast.error(getApiErrorMessage(error, "Invalid phone OTP"));
+                  }
+                }}
+              >
+                Verify
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Email OTP Verification</Label>
+              {!emailChanged || !email.trim() ? (
+                <span className="text-xs text-muted-foreground">No email change</span>
+              ) : emailVerified ? (
+                <span className="text-xs text-emerald-600">Verified</span>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={emailOtp}
+                onChange={(event) => setEmailOtp(event.target.value)}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+                disabled={!emailChanged || !email.trim() || emailVerified}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!emailChanged || !email.trim() || sendEmailOtpMutation.isPending}
+                onClick={async () => {
+                  try {
+                    await sendEmailOtpMutation.mutateAsync(email.trim());
+                    toast.success("Email OTP sent");
+                  } catch (error) {
+                    toast.error(getApiErrorMessage(error, "Failed to send email OTP"));
+                  }
+                }}
+              >
+                Send OTP
+              </Button>
+              <Button
+                type="button"
+                disabled={!emailChanged || !email.trim() || emailVerified || emailOtp.length !== 6}
+                onClick={async () => {
+                  try {
+                    await verifyEmailOtpMutation.mutateAsync({ email: email.trim(), otp: emailOtp.trim() });
+                    setEmailVerified(true);
+                    toast.success("Email verified");
+                  } catch (error) {
+                    toast.error(getApiErrorMessage(error, "Invalid email OTP"));
+                  }
+                }}
+              >
+                Verify
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">

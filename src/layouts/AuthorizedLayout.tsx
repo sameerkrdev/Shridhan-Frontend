@@ -28,7 +28,9 @@ const AuthorizedLayout = () => {
   const hasRestoredSession = useAuthSessionStore((state) => state.hasRestoredSession);
   const selectedMembership = useAuthSessionStore((state) => state.selectedMembership);
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
-  const [dismissedBannerForSocietyId, setDismissedBannerForSocietyId] = useState<string | null>(null);
+  const [dismissedBannerForSocietyId, setDismissedBannerForSocietyId] = useState<string | null>(
+    null,
+  );
 
   const { data: billingOverview } = useSocietyBillingOverviewQuery(
     selectedMembership?.societyId ?? null,
@@ -42,9 +44,9 @@ const AuthorizedLayout = () => {
 
     const shouldRedirectToMandate = Boolean(
       !billingOverview.override.enabled &&
-        !billingOverview.trial.isActive &&
-        billingOverview.subscription?.status !== "ACTIVE" &&
-        location.pathname !== "/billing",
+      !billingOverview.trial.isActive &&
+      billingOverview.subscription?.status !== "ACTIVE" &&
+      location.pathname !== "/billing",
     );
 
     if (shouldRedirectToMandate) {
@@ -82,7 +84,9 @@ const AuthorizedLayout = () => {
       }
     }, 2000);
 
-    return () => { window.clearTimeout(timer); };
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [billingOverview, selectedMembership?.societyId, location.pathname]);
 
   const isSessionRestorePending = hadSession && !hasRestoredSession;
