@@ -12,6 +12,10 @@ type ZodTreeNode = {
 };
 
 export const getApiErrorMessage = (error: unknown, fallback = "Something went wrong") => {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
   if (!axios.isAxiosError(error)) {
     return fallback;
   }

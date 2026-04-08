@@ -198,6 +198,9 @@ const RELATION_OPTIONS = [
   "GUARDIAN",
   "OTHER",
 ] as const;
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
+const SUPPORTED_FILE_TYPES = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx";
+const isSupportedFileType = (fileName: string) => /\.(pdf|jpe?g|png|webp|docx?|xlsx?)$/i.test(fileName);
 
 export const CreateMisAccountDialog = ({
   open,
@@ -212,6 +215,7 @@ export const CreateMisAccountDialog = ({
   const updateMutation = useUpdateMisAccountMutation(societyId, initialData?.id ?? "");
   const { data: referrerMembers } = useMisReferrerMembersQuery(societyId);
   const [documents, setDocuments] = useState<Array<{ file: File; displayName: string }>>([]);
+  const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
   const {
     register,
     control,
@@ -483,22 +487,30 @@ export const CreateMisAccountDialog = ({
       });
 
       if (created.uploadTargets?.length) {
-        await Promise.all(
-          created.uploadTargets.map(async (target) => {
-            const source = documents.find(
-              (item) =>
-                item.file.name === target.fileName && item.displayName === target.displayName,
-            );
-            if (!source) return;
+        setIsUploadingDocuments(true);
+        try {
+          await Promise.all(
+            created.uploadTargets.map(async (target) => {
+              const source = documents.find(
+                (item) =>
+                  item.file.name === target.fileName && item.displayName === target.displayName,
+              );
+              if (!source) return;
 
-            await fetch(target.uploadUrl, {
-              method: "PUT",
-              headers: { "Content-Type": source.file.type || "application/octet-stream" },
-              body: source.file,
-            });
-            await completeMisDocumentUpload(societyId, created.id, target.documentId);
-          }),
-        );
+              const uploadResponse = await fetch(target.uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Type": source.file.type || "application/octet-stream" },
+                body: source.file,
+              });
+              if (!uploadResponse.ok) {
+                throw new Error(`Failed to upload ${source.file.name} (status ${uploadResponse.status})`);
+              }
+              await completeMisDocumentUpload(societyId, created.id, target.documentId);
+            }),
+          );
+        } finally {
+          setIsUploadingDocuments(false);
+        }
       }
 
       toast.success("MIS account created");
@@ -517,9 +529,24 @@ export const CreateMisAccountDialog = ({
   const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files ?? []);
     if (!selected.length) return;
+    const accepted = selected.filter((file) => {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`${file.name} exceeds 100MB limit`);
+        return false;
+      }
+      if (!isSupportedFileType(file.name)) {
+        toast.error(`${file.name} is not a supported file type`);
+        return false;
+      }
+      return true;
+    });
+    if (!accepted.length) {
+      event.target.value = "";
+      return;
+    }
     setDocuments((prev) => [
       ...prev,
-      ...selected.map((file) => ({ file, displayName: file.name })),
+      ...accepted.map((file) => ({ file, displayName: file.name })),
     ]);
     event.target.value = "";
   };
@@ -851,7 +878,41 @@ export const CreateMisAccountDialog = ({
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
-            <Input type="file" multiple onChange={handleFilesSelected} />
+            {mode === "edit" ? (
+              initialData?.documents?.length ? (
+                <div className="space-y-2">
+                  {initialData.documents.map((document) => (
+                    <div key={document.id} className="rounded-md border p-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-sm">{document.displayName}</p>
+                        <p className="text-xs text-muted-foreground">{document.fileName}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" size="xs" asChild>
+                          <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                            Open
+                          </a>
+                        </Button>
+                        <Button type="button" size="xs" asChild>
+                          <a href={document.fileUrl} download={document.fileName}>
+                            Download
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+              )
+            ) : null}
+            <Input type="file" multiple accept={SUPPORTED_FILE_TYPES} onChange={handleFilesSelected} />
+            <p className="text-xs text-muted-foreground">
+              Max file size: 100MB each. Supported: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX.
+            </p>
+            {isUploadingDocuments ? (
+              <p className="text-xs text-primary">Uploading documents... Please wait for large files.</p>
+            ) : null}
             {documents.length > 0 ? (
               <div className="space-y-2">
                 {documents.map((document, index) => (
@@ -991,10 +1052,11 @@ export const CreateMisAccountDialog = ({
               disabled={
                 mutation.isPending ||
                 updateMutation.isPending ||
+                isUploadingDocuments ||
                 (mode === "create" && projectTypes.length === 0)
               }
             >
-              {mode === "edit" ? "Save Changes" : "Create MIS Account"}
+              {isUploadingDocuments ? "Uploading Documents..." : mode === "edit" ? "Save Changes" : "Create MIS Account"}
             </Button>
           </div>
         </form>

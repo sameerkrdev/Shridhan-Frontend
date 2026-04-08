@@ -120,25 +120,30 @@ const AuthorizedLayout = () => {
                       <div className="px-4 py-2">
                         <div className="flex flex-col gap-2 text-sm md:flex-row md:items-center md:justify-between">
                           <span>
-                            Trial ends at{" "}
+                            Your trial ends at{" "}
                             {billingOverview?.trial.endAt
                               ? formatDate(billingOverview.trial.endAt)
                               : "N/A"}
                             . Complete subscription mandate setup to avoid permission blocking.
                           </span>
                           <div className="flex items-center gap-2">
-                            <Button size="sm" onClick={() => navigate("/billing")}>
+                            <Button
+                              size="xs"
+                              className="flex-1 sm:w-auto"
+                              onClick={() => navigate("/billing")}
+                            >
                               Complete Setup
                             </Button>
                             <Button
-                              size="icon"
-                              variant="ghost"
+                              size="xs"
+                              className="flex-1 sm:w-auto md:bg-transparent md:hover:bg-transparent"
                               aria-label="Dismiss payment reminder"
                               onClick={() =>
                                 setDismissedBannerForSocietyId(selectedMembership.societyId)
                               }
                             >
-                              <IconX className="h-4 w-4" />
+                              <IconX className="size-5 hidden md:block text-foreground" />
+                              <span className="md:hidden">Dismiss reminder</span>
                             </Button>
                           </div>
                         </div>

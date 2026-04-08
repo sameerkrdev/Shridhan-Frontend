@@ -741,11 +741,11 @@ const MisPage = () => {
           </Table>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Showing {filteredAccountRows.length} of {accountRows.length} rows (Total records: {summary.total})
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <Select
               value={String(pageSize)}
               onValueChange={(value) => {
@@ -763,7 +763,7 @@ const MisPage = () => {
                 <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground sm:mx-1">
               Page {page} of {summary.totalPages}
             </span>
             <Button type="button" variant="outline" size="sm" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page <= 1}>

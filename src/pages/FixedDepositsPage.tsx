@@ -1047,8 +1047,8 @@ const FixedDepositsPage = () => {
         <p className="text-xs text-muted-foreground">
           Showing {filteredFdRows.length} of {fdRows.length} FD accounts
         </p>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex w-full flex-wrap items-center gap-2 text-sm text-muted-foreground sm:w-auto">
             <span>Rows per page</span>
             <Select
               value={String(pageSize)}
@@ -1068,7 +1068,7 @@ const FixedDepositsPage = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto sm:justify-end">
             <span className="text-muted-foreground">
               Page {safeCurrentPage} of {totalPages}
             </span>

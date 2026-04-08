@@ -17,11 +17,20 @@ import { useAuthSessionStore } from "@/store/authSessionStore";
 import { firestoreDb, isFirebaseConfigured } from "@/lib/firebase";
 import { formatDateTime } from "@/lib/dateFormat";
 import { hasPermission } from "@/components/Can";
+import { toast } from "sonner";
 
 const formatCurrency = (value: string | number | undefined) => {
   const amount = Number(value);
   if (Number.isNaN(amount)) return "Rs. 0.00";
   return `Rs. ${amount.toFixed(2)}`;
+};
+
+const formatNotificationTypeLabel = (value?: string) => {
+  if (!value) return "Notification";
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 type NotificationRow = {
@@ -128,10 +137,33 @@ export const NotificationsPopover = () => {
     if (!societyId || !firestoreDb) return;
     const row = items.find((i) => i.docId === docId);
     if (!row || row.isRead) return;
-    await updateDoc(doc(firestoreDb, `societies/${societyId}/notifications`, docId), {
-      isRead: true,
-      readAt: new Date().toISOString(),
-    });
+    try {
+      await updateDoc(doc(firestoreDb, `societies/${societyId}/notifications`, docId), {
+        isRead: true,
+        readAt: new Date().toISOString(),
+      });
+    } catch {
+      toast.error("Failed to mark notification as read");
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!societyId || !firestoreDb) return;
+    const unread = visibleItems.filter((item) => !item.isRead);
+    if (!unread.length) return;
+    try {
+      await Promise.all(
+        unread.map((item) =>
+          updateDoc(doc(firestoreDb, `societies/${societyId}/notifications`, item.docId), {
+            isRead: true,
+            readAt: new Date().toISOString(),
+          }),
+        ),
+      );
+      toast.success("All notifications marked as read");
+    } catch {
+      toast.error("Failed to mark all notifications as read");
+    }
   };
 
   if (!canUseRealtime) return null;
@@ -150,14 +182,38 @@ export const NotificationsPopover = () => {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-[calc(100vw-1rem)] max-w-[380px] p-0"
+        sideOffset={8}
+        collisionPadding={8}
+        className="w-[min(380px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-0"
       >
-        <div className="border-b px-3 py-2 text-sm font-semibold">Notifications</div>
-        <div className="max-h-[420px] overflow-auto">
+        <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">Notifications</span>
+            {unreadCount > 0 ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                {unreadCount} unread
+              </span>
+            ) : (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                All read
+              </span>
+            )}
+          </div>
+          <Button
+            size="xs"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            disabled={unreadCount === 0}
+            onClick={() => void markAllAsRead()}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <div className="max-h-[min(420px,70vh)] overflow-auto">
           {loading ? (
             <div className="px-3 py-4 text-sm text-muted-foreground">Loading...</div>
           ) : visibleItems.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-muted-foreground">No notifications.</div>
+            <div className="px-3 py-5 text-center text-sm text-muted-foreground">No notifications.</div>
           ) : (
             visibleItems.map((row) => {
               const accountRoute = getAccountRoute(row);
@@ -176,15 +232,22 @@ export const NotificationsPopover = () => {
               return (
                 <div
                   key={row.docId}
-                  className={`border-b px-3 py-2 ${row.isRead ? "" : "bg-muted/20"}`}
+                  className={`border-b px-3 py-3 transition-colors ${row.isRead ? "bg-background" : "bg-primary/5"}`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-1 text-sm font-medium">{label}</p>
-                    {!row.isRead ? <span className="h-2 w-2 rounded-full bg-blue-500" /> : null}
+                    <div className="space-y-1">
+                      <p className="line-clamp-1 text-sm font-medium">{label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatNotificationTypeLabel(row.notificationType)}
+                        {row.status ? ` • ${row.status}` : ""}
+                      </p>
+                    </div>
+                    {!row.isRead ? (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                    ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {row.notificationType ?? "Notification"} {row.status ? `• ${row.status}` : ""}
-                    {row.createdAt ? ` • ${formatDateTime(row.createdAt)}` : ""}
+                    {row.createdAt ? formatDateTime(row.createdAt) : "—"}
                   </p>
                   {row.notificationType === "FD_EARLY_PAYOUT_REQUEST" ? (
                     <p className="text-xs text-muted-foreground">
@@ -233,8 +296,18 @@ export const NotificationsPopover = () => {
                     </div>
                   ) : null}
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    {!row.isRead ? (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="w-full sm:w-auto"
+                        onClick={() => void markAsRead(row.docId)}
+                      >
+                        Mark as read
+                      </Button>
+                    ) : null}
                     <Button
-                      size="sm"
+                      size="xs"
                       variant="outline"
                       className="w-full sm:w-auto"
                       onClick={() => {
@@ -242,11 +315,11 @@ export const NotificationsPopover = () => {
                         navigate(`/notifications?docId=${encodeURIComponent(row.docId)}`);
                       }}
                     >
-                      Open
+                      Open details
                     </Button>
                     {accountRoute ? (
                       <Button
-                        size="sm"
+                        size="xs"
                         variant="outline"
                         className="w-full sm:w-auto"
                         onClick={() => {
@@ -260,7 +333,7 @@ export const NotificationsPopover = () => {
                     {showRdActions && requestId ? (
                       <>
                         <Button
-                          size="sm"
+                          size="xs"
                           className="w-full sm:w-auto"
                           disabled={actionPending}
                           onClick={() => {
@@ -271,7 +344,7 @@ export const NotificationsPopover = () => {
                           Accept
                         </Button>
                         <Button
-                          size="sm"
+                          size="xs"
                           variant="destructive"
                           className="w-full sm:w-auto"
                           disabled={actionPending}
@@ -290,7 +363,7 @@ export const NotificationsPopover = () => {
                     {showFdActions && requestId ? (
                       <>
                         <Button
-                          size="sm"
+                          size="xs"
                           className="w-full sm:w-auto"
                           disabled={actionPending}
                           onClick={() => {
@@ -306,7 +379,7 @@ export const NotificationsPopover = () => {
                           Accept
                         </Button>
                         <Button
-                          size="sm"
+                          size="xs"
                           variant="destructive"
                           className="w-full sm:w-auto"
                           disabled={actionPending}
@@ -329,7 +402,7 @@ export const NotificationsPopover = () => {
           )}
         </div>
         <div className="border-t p-2">
-          <Button variant="ghost" className="w-full" onClick={() => navigate("/notifications")}>
+          <Button size="xs" variant="ghost" className="w-full" onClick={() => navigate("/notifications")}>
             View all
           </Button>
         </div>

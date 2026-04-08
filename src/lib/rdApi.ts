@@ -100,10 +100,28 @@ export interface RdAccount {
   isDeleted?: boolean;
   customer: RdCustomer;
   projectType: RdProjectType;
+  uploadTargets?: Array<{
+    documentId: string;
+    displayName: string;
+    fileName: string;
+    uploadUrl: string;
+    fileUrl: string;
+  }>;
 }
 
 export interface RdDetail extends RdAccount {
   customer: RdCustomer & { nominees: RdNominee[] };
+  documents?: Array<{
+    id: string;
+    fileName: string;
+    displayName: string;
+    objectKey: string;
+    fileUrl: string;
+    contentType?: string | null;
+    sizeBytes?: number | null;
+    isUploaded: boolean;
+    createdAt: string;
+  }>;
   installments: RdInstallmentRow[];
   transactions: RdTransaction[];
   summary: {
@@ -265,9 +283,27 @@ export const createRdAccount = async (
       chequeNumber?: string;
       bankName?: string;
     };
+    documents?: Array<{
+      fileName: string;
+      displayName: string;
+      contentType?: string;
+      sizeBytes?: number;
+    }>;
   },
 ) => {
-  const { data } = await apiClient.post("/recurring-deposits", payload);
+  const { data } = await apiClient.post<RdAccount>("/recurring-deposits", payload);
+  return data;
+};
+
+export const completeRdDocumentUpload = async (
+  _societyId: string,
+  rdId: string,
+  documentId: string,
+) => {
+  const { data } = await apiClient.post(
+    `/recurring-deposits/${rdId}/documents/${documentId}/complete`,
+    {},
+  );
   return data;
 };
 

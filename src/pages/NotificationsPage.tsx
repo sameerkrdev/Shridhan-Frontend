@@ -25,11 +25,20 @@ import { hasPermission } from "@/components/Can";
 import { collection, doc, limit, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { firestoreDb, isFirebaseConfigured } from "@/lib/firebase";
 import { formatDateTime } from "@/lib/dateFormat";
+import { toast } from "sonner";
 
 const formatCurrency = (value: string | number) => {
   const amount = Number(value);
   if (Number.isNaN(amount)) return "Rs. 0.00";
   return `Rs. ${amount.toFixed(2)}`;
+};
+
+const formatNotificationTypeLabel = (value?: string) => {
+  if (!value) return "Notification";
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 type RealtimeRow = {
@@ -138,16 +147,32 @@ const RealtimeNotificationsTable = ({
     if (!firestoreDb) return;
     const row = realtimeRequests.find((r) => r.docId === docId);
     if (!row || row.isRead) return;
-    await updateDoc(doc(firestoreDb, `societies/${societyId}/notifications`, docId), {
-      isRead: true,
-      readAt: new Date().toISOString(),
-    });
+    try {
+      await updateDoc(doc(firestoreDb, `societies/${societyId}/notifications`, docId), {
+        isRead: true,
+        readAt: new Date().toISOString(),
+      });
+    } catch {
+      toast.error("Failed to mark notification as read");
+    }
   };
 
   const markAllRealtimeAsRead = async () => {
     const unread = realtimeRequests.filter((r) => !r.isRead);
     if (!unread.length) return;
-    await Promise.all(unread.map((r) => markRealtimeAsRead(r.docId)));
+    try {
+      await Promise.all(
+        unread.map((row) =>
+          updateDoc(doc(firestoreDb!, `societies/${societyId}/notifications`, row.docId), {
+            isRead: true,
+            readAt: new Date().toISOString(),
+          }),
+        ),
+      );
+      toast.success("All notifications marked as read");
+    } catch {
+      toast.error("Failed to mark all notifications as read");
+    }
   };
 
   const getAccountRoute = (request: {
@@ -213,11 +238,14 @@ const RealtimeNotificationsTable = ({
   return (
     <>
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Unread: <span className="font-medium text-foreground">{unreadCount}</span>
-        </p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Unread</span>
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            {unreadCount}
+          </span>
+        </div>
         <Button
-          size="sm"
+          size="xs"
           variant="outline"
           onClick={() => void markAllRealtimeAsRead()}
           disabled={unreadCount === 0}
@@ -225,7 +253,7 @@ const RealtimeNotificationsTable = ({
           Mark all as read
         </Button>
       </div>
-      <div className="rounded-md border overflow-auto">
+      <div className="overflow-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
@@ -234,17 +262,18 @@ const RealtimeNotificationsTable = ({
               <TableHead>Account</TableHead>
               <TableHead>Detail</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Read</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {realtimeLoading ? (
               <TableRow>
-                <TableCell colSpan={6}>Loading...</TableCell>
+                <TableCell colSpan={7}>Loading...</TableCell>
               </TableRow>
             ) : requests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>No notifications.</TableCell>
+                <TableCell colSpan={7}>No notifications.</TableCell>
               </TableRow>
             ) : (
               requests.map((request) => (
@@ -257,7 +286,9 @@ const RealtimeNotificationsTable = ({
                 >
                   <TableCell>{formatDateTime(request.createdAt)}</TableCell>
                   <TableCell>
-                    <div className="text-xs text-muted-foreground">{request.notificationType}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatNotificationTypeLabel(request.notificationType)}
+                    </div>
                     <div className="flex items-center gap-2">
                       {!request.isRead ? (
                         <span className="h-2 w-2 rounded-full bg-blue-500" />
@@ -333,12 +364,40 @@ const RealtimeNotificationsTable = ({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>{request.status}</TableCell>
-                  <TableCell className="space-x-2">
+                  <TableCell>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-medium ${
+                        request.status === "PENDING"
+                          ? "bg-amber-100 text-amber-800"
+                          : request.status === "APPROVED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : request.status === "REJECTED"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {request.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {!request.isRead ? (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => void markRealtimeAsRead(request.docId)}
+                      >
+                        Mark read
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Read</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
                     {request.notificationType === "RD_FINE_WAIVE_REQUEST" && canApproveRd && request.canAct ? (
                       <>
                         <Button
-                          size="sm"
+                          size="xs"
                           disabled={actionPending}
                           onClick={() => {
                             void markRealtimeAsRead(request.docId);
@@ -348,7 +407,7 @@ const RealtimeNotificationsTable = ({
                           Accept
                         </Button>
                         <Button
-                          size="sm"
+                          size="xs"
                           variant="destructive"
                           disabled={actionPending}
                           onClick={() => {
@@ -366,7 +425,7 @@ const RealtimeNotificationsTable = ({
                     {request.notificationType === "FD_EARLY_PAYOUT_REQUEST" && canApproveFd && request.canAct ? (
                       <>
                         <Button
-                          size="sm"
+                          size="xs"
                           disabled={actionPending}
                           onClick={() => {
                             void markRealtimeAsRead(request.docId);
@@ -381,7 +440,7 @@ const RealtimeNotificationsTable = ({
                           Accept
                         </Button>
                         <Button
-                          size="sm"
+                          size="xs"
                           variant="destructive"
                           disabled={actionPending}
                           onClick={() => {
@@ -398,7 +457,7 @@ const RealtimeNotificationsTable = ({
                     ) : null}
                     {getAccountRoute(request) ? (
                       <Button
-                        size="sm"
+                        size="xs"
                         variant="outline"
                         onClick={() => {
                           void markRealtimeAsRead(request.docId);
@@ -409,6 +468,7 @@ const RealtimeNotificationsTable = ({
                         Go to account
                       </Button>
                     ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -534,18 +594,19 @@ const NotificationsPage = () => {
                               .join(", ")}
                           </TableCell>
                           <TableCell>{request.reduceFromMaturity ? "Yes" : "No"}</TableCell>
-                          <TableCell className="space-x-2">
+                          <TableCell>
+                            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
                             {request.canAct ? (
                               <>
                                 <Button
-                                  size="sm"
+                                  size="xs"
                                   disabled={approveRdMutation.isPending || rejectRdMutation.isPending}
                                   onClick={() => approveRdMutation.mutate(request.id)}
                                 >
                                   Accept
                                 </Button>
                                 <Button
-                                  size="sm"
+                                  size="xs"
                                   variant="destructive"
                                   disabled={approveRdMutation.isPending || rejectRdMutation.isPending}
                                   onClick={() =>
@@ -562,7 +623,7 @@ const NotificationsPage = () => {
                               <span className="text-xs text-muted-foreground">{request.status}</span>
                             )}
                             <Button
-                              size="sm"
+                              size="xs"
                               variant="outline"
                               onClick={() =>
                                 navigate(
@@ -572,6 +633,7 @@ const NotificationsPage = () => {
                             >
                               Go to account
                             </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -641,9 +703,10 @@ const NotificationsPage = () => {
                               </label>
                             </div>
                           </TableCell>
-                          <TableCell className="space-x-2">
+                          <TableCell>
+                            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
                             <Button
-                              size="sm"
+                              size="xs"
                               disabled={approveFdMutation.isPending || rejectFdMutation.isPending}
                               onClick={() =>
                                 approveFdMutation.mutate({
@@ -657,7 +720,7 @@ const NotificationsPage = () => {
                               Accept
                             </Button>
                             <Button
-                              size="sm"
+                              size="xs"
                               variant="destructive"
                               disabled={approveFdMutation.isPending || rejectFdMutation.isPending}
                               onClick={() =>
@@ -670,7 +733,7 @@ const NotificationsPage = () => {
                               Reject
                             </Button>
                             <Button
-                              size="sm"
+                              size="xs"
                               variant="outline"
                               onClick={() =>
                                 navigate(
@@ -680,6 +743,7 @@ const NotificationsPage = () => {
                             >
                               Go to account
                             </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

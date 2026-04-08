@@ -154,14 +154,18 @@ export const MisDetailDialog = ({ open, onOpenChange, societyId, misId }: MisDet
                           <p className="font-medium">{document.displayName}</p>
                           <p className="text-xs text-muted-foreground">{document.fileName}</p>
                         </div>
-                        <a
-                          href={document.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-primary underline underline-offset-4"
-                        >
-                          Open
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="xs" asChild>
+                            <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                              Open
+                            </a>
+                          </Button>
+                          <Button type="button" size="xs" asChild>
+                            <a href={document.fileUrl} download={document.fileName}>
+                              Download
+                            </a>
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

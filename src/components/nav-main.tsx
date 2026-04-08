@@ -52,7 +52,7 @@ export function NavMain({
                 <SidebarMenuItem>
                   <SidebarMenuButton tooltip={title} isActive={isActive}>
                     {Icon && <Icon />}
-                    <span>{title}</span>
+                    <span className={title === "Notifications" ? "text-xs sm:text-sm" : undefined}>{title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </NavLink>

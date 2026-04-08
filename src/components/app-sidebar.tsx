@@ -61,13 +61,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const navMain = React.useMemo(() => {
-    const items = [
-      { title: "Dashboard", url: "/", icon: IconDashboard },
-    ];
-
-    if (hasPermission(permissions, "membership.list")) {
-      items.push({ title: "Members", url: "/members", icon: IconUsers });
-    }
+    const items = [{ title: "Dashboard", url: "/", icon: IconDashboard }];
 
     if (hasPermission(permissions, "fixed_deposit.list")) {
       items.push({ title: "Fixed Deposits", url: "/fixed-deposits", icon: IconCoins });
@@ -93,6 +87,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items.push({ title: "Notifications", url: "/notifications", icon: IconBell });
     }
 
+    if (hasPermission(permissions, "membership.list")) {
+      items.push({ title: "Members", url: "/members", icon: IconUsers });
+    }
+
     if (hasPermission(permissions, "role.read")) {
       items.push({ title: "Role Settings", url: "/role-settings", icon: IconShield });
     }
@@ -116,7 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
               <Link to="#">
                 <IconInnerShadowTop className="size-5!" />
-                <span className="text-base font-semibold">Shridhan</span>
+                <span className="text-lg font-bold">Shridhan</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -141,6 +141,39 @@ export const RdDetailDialog = ({ open, onOpenChange, societyId, rdId }: RdDetail
                 )}
               </div>
 
+              <div className="space-y-3">
+                <h3 className="font-semibold">Documents</h3>
+                {data.documents?.length ? (
+                  <div className="space-y-2">
+                    {data.documents.map((document) => (
+                      <div
+                        key={document.id}
+                        className="rounded-md border p-3 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <p className="font-medium">{document.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{document.fileName}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="xs" asChild>
+                            <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                              Open
+                            </a>
+                          </Button>
+                          <Button type="button" size="xs" asChild>
+                            <a href={document.fileUrl} download={document.fileName}>
+                              Download
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <h3 className="font-semibold">Installments</h3>
                 <div className="rounded-md border overflow-auto max-h-[280px]">
