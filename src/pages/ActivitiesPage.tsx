@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useActivitiesQuery } from "@/hooks/useActivityApi";
 import { formatDate } from "@/lib/dateFormat";
+import { formatActivityDetails } from "@/lib/activityDetails";
 
 const ActivitiesPage = () => {
   const selectedMembership = useAuthSessionStore((state) => state.selectedMembership);
@@ -90,20 +91,24 @@ const ActivitiesPage = () => {
               <TableHead>When</TableHead>
               <TableHead>Entity</TableHead>
               <TableHead className="min-w-[220px]">Action</TableHead>
+              <TableHead className="min-w-[240px]">Details</TableHead>
               <TableHead>Actor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4}>Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5}>Loading...</TableCell></TableRow>
             ) : (data?.items.length ?? 0) === 0 ? (
-              <TableRow><TableCell colSpan={4}>No activities found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5}>No activities found.</TableCell></TableRow>
             ) : (
               data?.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{formatDate(item.createdAt)}</TableCell>
                   <TableCell>{item.entityType}</TableCell>
-                  <TableCell className="min-w-[220px]">{item.actionType}</TableCell>
+                  <TableCell className="min-w-[220px]">{item.actionType.replaceAll("_", " ")}</TableCell>
+                  <TableCell className="whitespace-normal wrap-break-word text-muted-foreground">
+                    {formatActivityDetails(item)}
+                  </TableCell>
                   <TableCell className="whitespace-normal wrap-break-word">
                     {item.actorName} ({item.actorPhone}) • {item.actorRoleName}
                   </TableCell>

@@ -9,12 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/dateFormat";
-
-const formatMetadata = (metadata: Record<string, unknown> | null | undefined) => {
-  if (!metadata) return "";
-  const entries = Object.entries(metadata).slice(0, 3);
-  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(" | ");
-};
+import { formatActivityDetails } from "@/lib/activityDetails";
 
 export const ActivityHistory = ({
   societyId,
@@ -68,7 +63,7 @@ export const ActivityHistory = ({
                     {item.actionType.replaceAll("_", " ")}
                   </TableCell>
                   <TableCell className="max-w-[min(280px,40vw)] whitespace-normal wrap-break-word text-muted-foreground">
-                    {formatMetadata(item.metadata)}
+                    {formatActivityDetails(item)}
                   </TableCell>
                 </TableRow>
               ))}
